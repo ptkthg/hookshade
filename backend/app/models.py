@@ -1,0 +1,73 @@
+from datetime import datetime, timezone
+
+from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.database import Base
+
+
+def _now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+class User(Base):
+    __tablename__ = "users"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(120))
+    email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    password_hash: Mapped[str] = mapped_column(String(255))
+    status: Mapped[str] = mapped_column(String(20), default="active")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class Analysis(Base):
+    __tablename__ = "analyses"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    submitted_by: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    source_type: Mapped[str] = mapped_column(String(10))  # eml | text
+    status: Mapped[str] = mapped_column(String(20), default="completed")
+    raw_content: Mapped[str] = mapped_column(Text)
+    parsed_headers: Mapped[dict] = mapped_column(JSON, default=dict)
+    sha256: Mapped[str] = mapped_column(String(64), index=True)
+    risk_score: Mapped[int] = mapped_column(Integer, default=0)
+    severity: Mapped[str] = mapped_column(String(10), default="baixo")
+    confidence: Mapped[str] = mapped_column(String(10), default="low")
+    summary: Mapped[str] = mapped_column(Text, default="")
+    context: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now, index=True)
+
+    iocs: Mapped[list["IOC"]] = relationship(cascade="all, delete-orphan")
+    findings: Mapped[list["Finding"]] = relationship(cascade="all, delete-orphan")
+    recommendations: Mapped[list["Recommendation"]] = relationship(cascade="all, delete-orphan")
+
+
+class IOC(Base):
+    __tablename__ = "iocs"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    analysis_id: Mapped[int] = mapped_column(ForeignKey("analyses.id"))
+    type: Mapped[str] = mapped_column(String(20))  # domain|url|ip|email|hash
+    value_defanged: Mapped[str] = mapped_column(String(2048))
+    value_hash: Mapped[str] = mapped_column(String(64), index=True)
+    source: Mapped[str] = mapped_column(String(40), default="parser")
+    first_seen: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
+class Finding(Base):
+    __tablename__ = "findings"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    analysis_id: Mapped[int] = mapped_column(ForeignKey("analyses.id"))
+    category: Mapped[str] = mapped_column(String(20))  # auth|url|content|attachment|structural
+    severity: Mapped[str] = mapped_column(String(10))
+    title: Mapped[str] = mapped_column(String(200))
+    description: Mapped[str] = mapped_column(Text)
+    weight_contribution: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class Recommendation(Base):
+    __tablename__ = "recommendations"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    analysis_id: Mapped[int] = mapped_column(ForeignKey("analyses.id"))
+    priority: Mapped[str] = mapped_column(String(10))  # low|medium|high
+    action_type: Mapped[str] = mapped_column(String(40))
+    description: Mapped[str] = mapped_column(Text)
