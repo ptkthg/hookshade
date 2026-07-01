@@ -1,0 +1,10 @@
+From: Microsoft 365 Security <security@micros0ft-support.com>
+Reply-To: recovery@mail.ru
+Return-Path: <bounce@sketchy-host.ru>
+Message-ID: <9931@sketchy-host.ru>
+Authentication-Results: mx.example.com; spf=fail smtp.mailfrom=sketchy-host.ru; dkim=none; dmarc=fail header.from=micros0ft-support.com
+Received: from unknown (10.20.30.40) by mx.example.com
+Subject: URGENT: Your password will expire in 24 hours - verify now
+Content-Type: text/plain
+
+Your account has been flagged. You must verify your credentials immediately or your account will be permanently suspended. Click here to reset your password: http://bit.ly/verify-now-account

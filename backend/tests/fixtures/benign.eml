@@ -1,0 +1,10 @@
+From: Contoso Billing <billing@contoso.com>
+Reply-To: billing@contoso.com
+Return-Path: <billing@contoso.com>
+Message-ID: <abc123@contoso.com>
+Authentication-Results: mx.example.com; spf=pass smtp.mailfrom=contoso.com; dkim=pass header.d=contoso.com; dmarc=pass header.from=contoso.com
+Received: from mail.contoso.com (mail.contoso.com [203.0.113.10]) by mx.example.com
+Subject: Your monthly invoice is ready
+Content-Type: text/plain
+
+Hello, your invoice for this month is available in your account portal at https://contoso.com/invoices. Thank you.
