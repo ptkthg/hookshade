@@ -26,6 +26,23 @@ cp .env.example .env
 
 API em `http://localhost:8000` (docs em `/docs`). Testes: `.venv/Scripts/python -m pytest`.
 
+## Retenção (purga do `raw_content`)
+
+Análises guardam o conteúdo bruto do e-mail cifrado em repouso. Para não retê-lo além do
+necessário, um comando de management remove análises mais antigas que `HOOKSHADE_RETENTION_DAYS`
+(padrão 90) e registra cada remoção na auditoria (`analysis.purge`):
+
+```bash
+cd backend
+.venv/Scripts/python -m app.tasks.purge              # usa HOOKSHADE_RETENTION_DAYS
+.venv/Scripts/python -m app.tasks.purge --days 30    # sobrescreve o prazo
+```
+
+Agende para rodar diariamente:
+
+- **Linux/macOS (cron):** `0 3 * * * cd /caminho/backend && .venv/bin/python -m app.tasks.purge`
+- **Windows (Task Scheduler):** ação `python -m app.tasks.purge`, "iniciar em" = pasta `backend`.
+
 ## Frontend
 
 ```bash
