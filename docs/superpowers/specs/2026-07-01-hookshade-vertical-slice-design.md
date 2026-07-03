@@ -1,8 +1,13 @@
 # Hookshade — Design da Fatia Vertical 1
 
 **Data:** 2026-07-01
-**Status:** Aprovado
+**Status:** Aprovado · **revisado (security-first) em 2026-07-01 — ver §Revisão ao final**
 **Fonte:** `Hookshade_Documentacao_Tecnica_v1.pdf` (documentação técnica oficial v1.0)
+
+> ⚠️ **Este documento foi revisado.** Leia primeiro a seção **"Revisão de escopo security-first"**
+> no fim: ela rebaixa o `risk_score`, reforça a evidência, torna a autenticação honesta e recorta o
+> escopo. Backlog priorizado: `docs/superpowers/backlog/2026-07-01-hookshade-backlog.md`.
+> Revisão de segurança: `docs/superpowers/security/2026-07-01-hookshade-security-review.md`.
 
 ## Contexto
 
@@ -140,3 +145,46 @@ correlação de campanhas · Dashboard/Visão Geral analítica · integrações 
 - Score é explicável: cada finding aponta a evidência e a contribuição de peso.
 - Histórico lista análises anteriores e permite abrir o resultado.
 - Anexos nunca são executados; segredos não aparecem no repositório.
+
+---
+
+## Revisão de escopo security-first (2026-07-01)
+
+Após revisão crítica de produto/segurança, o design acima é ajustado. Nada da fatia é jogado fora;
+o que muda é **ênfase, honestidade e recorte**.
+
+### 1. O `risk_score` é rebaixado a índice heurístico advisory
+Pesos fixos sem dataset rotulado não têm significado estatístico e um número preciso sugere validação
+inexistente. A **manchete** passa a ser a **banda de severidade + evidências**; o número 0–100 vira um
+*índice heurístico advisory* (mesma matemática, outra comunicação). Calibração contra corpora públicos
+(Nazario/PhishTank vs. Enron) é pré-requisito para qualquer claim de precisão. Ver SEC-4.
+
+### 2. Findings ganham proveniência
+Cada `finding` passa a carregar `rule_id` (identidade da regra) e `evidence` (o trecho que a disparou),
+além de `title`/`description`/`severity`/`weight_contribution`. É o que sustenta a explicabilidade e a
+auditoria/chain-of-custody. (Implementado nesta iteração.)
+
+### 3. Autenticação honesta
+A leitura de `Authentication-Results` é **o carimbo do MTA receptor**, não uma revalidação. As descrições
+dizem isso explicitamente ("não revalidado via DNS"). Revalidação viva do domínio (só DNS, nunca seguindo
+URLs) entra como P1-1. Ver SEC-3.
+
+### 4. Novo sinal near-term: discrepância de URL exibida vs. real
+Detecta `<a href>` cujo host difere do que o texto do link aparenta — sinal clássico, barato e de alto
+valor. Requer extrair pares (href, texto) no parser. (Implementado nesta iteração — categoria `url`.)
+
+### 5. Privacidade vira requisito, não enfeite
+`raw_content` deve ser cifrado em repouso, com retenção curta e exclusão sob demanda; qualquer chamada
+externa (TI/IA) é **opt-in, BYO-key e desligável**. Ver SEC-2 / SEC-8.
+
+### 6. Recorte de escopo (o que sai do caminho crítico)
+Gestão de caso/IR **removida** (é TheHive/XSOAR — integrar, não reconstruir). Correlação de campanhas,
+relatório executivo, dashboard analítico, SIEM/SOAR/M365 e **IA narrativa** adiados (IA só após
+guarda-corpos anti-injeção — SEC-1). Detonação/resolução online de URLs **proibida** (SSRF/legal).
+
+### 7. Diferencial a cravar
+"**Explicável + local-first**", com motor de **regras editáveis pelo analista** (P1-3) como fosso. É o
+que os grandes não copiam facilmente e serve tanto ao portfólio quanto a um wedge comercial.
+
+> A lista original de "Fora de escopo" continua válida; esta revisão apenas a reforça e prioriza via
+> backlog (P0/P1/P2).
