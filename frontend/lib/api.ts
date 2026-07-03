@@ -1,5 +1,5 @@
 import { getToken } from "./auth";
-import type { AnalysisDetail, AnalysisSummary } from "./types";
+import type { AnalysisDetail, AnalysisSummary, AuditPage } from "./types";
 
 const BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
 
@@ -25,6 +25,15 @@ export async function login(email: string, password: string): Promise<string> {
 }
 
 export const listAnalyses = () => req<AnalysisSummary[]>("/api/v1/analyses");
+
+export function listAudit(params: { action?: string; limit?: number; offset?: number } = {}) {
+  const q = new URLSearchParams();
+  if (params.action) q.set("action", params.action);
+  if (params.limit != null) q.set("limit", String(params.limit));
+  if (params.offset != null) q.set("offset", String(params.offset));
+  const qs = q.toString();
+  return req<AuditPage>(`/api/v1/audit${qs ? `?${qs}` : ""}`);
+}
 export const getAnalysis = (id: number) => req<AnalysisDetail>(`/api/v1/analyses/${id}`);
 
 export const analyzeText = (content: string, context?: string) =>
