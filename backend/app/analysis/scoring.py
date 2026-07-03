@@ -4,6 +4,7 @@ from app.analysis.auth_analysis import analyze_authentication
 from app.analysis.content import analyze_content
 from app.analysis.iocs import extract_iocs
 from app.analysis.types import AnalysisResult, FindingItem, ParsedEmail, RecItem
+from app.analysis.url_discrepancy import analyze_url_discrepancy
 
 _WEIGHTS = {"auth": 20, "structural": 25, "content": 20, "attachment": 15}
 _SHORTENERS = {"bit.ly", "tinyurl.com", "t.co", "goo.gl", "ow.ly", "is.gd", "buff.ly"}
@@ -22,11 +23,13 @@ def _structural(parsed: ParsedEmail) -> tuple[list[FindingItem], float, float]:
         if host in _SHORTENERS:
             penalty += 0.4
             findings.append(FindingItem("url", "médio", f"Encurtador de URL ({host})",
-                                        f"URL usa encurtador {host}, ocultando o destino real."))
+                                        f"URL usa encurtador {host}, ocultando o destino real.",
+                                        rule_id="url.shortener", evidence=host))
         if "xn--" in host:
             penalty += 0.5
             findings.append(FindingItem("url", "alto", f"Domínio punycode ({host})",
-                                        "Domínio internacionalizado (punycode) pode imitar marca legítima."))
+                                        "Domínio internacionalizado (punycode) pode imitar marca legítima.",
+                                        rule_id="url.punycode", evidence=host))
 
     # lookalike: brand token appears in from-domain but domain isn't the plain brand
     fd = parsed.from_domain
@@ -34,8 +37,14 @@ def _structural(parsed: ParsedEmail) -> tuple[list[FindingItem], float, float]:
         if brand in fd.replace("0", "o").replace("1", "l") and not fd.startswith(f"{brand}."):
             penalty += 0.5
             findings.append(FindingItem("url", "alto", f"Domínio lookalike de marca ({fd})",
-                                        f"Domínio do remetente lembra a marca '{brand}' mas não é o domínio oficial."))
+                                        f"Domínio do remetente lembra a marca '{brand}' mas não é o domínio oficial.",
+                                        rule_id="url.brand_lookalike", evidence=f"{fd} ~ {brand}"))
             break
+
+    # P0-6: discrepância entre URL exibida (texto) e real (href)
+    disc_findings, disc_penalty = analyze_url_discrepancy(parsed)
+    findings.extend(disc_findings)
+    penalty += disc_penalty
 
     if parsed.attachments:
         risky = {".exe", ".scr", ".js", ".vbs", ".zip", ".rar", ".docm", ".xlsm", ".html", ".htm"}
@@ -45,7 +54,8 @@ def _structural(parsed: ParsedEmail) -> tuple[list[FindingItem], float, float]:
                 att_penalty += 0.5
                 findings.append(FindingItem("attachment", "alto", f"Anexo de extensão arriscada ({att.filename})",
                                             f"Anexo {att.filename} ({att.mime_type}) tem extensão de risco. "
-                                            "Nunca executado; apenas hash/metadados."))
+                                            "Nunca executado; apenas hash/metadados.",
+                                            rule_id="attachment.risky_extension", evidence=f"{att.filename} ({att.mime_type})"))
 
     return findings, min(penalty, 1.0), min(att_penalty, 1.0)
 
@@ -118,10 +128,12 @@ def score(parsed: ParsedEmail) -> AnalysisResult:
 
 
 def _summary(parsed: ParsedEmail, severity: str, risk: int, findings: list[FindingItem]) -> str:
+    # Manchete = severidade + evidência; o número é apenas um índice heurístico advisory (SEC-4).
     top = "; ".join(f.title for f in findings[:3]) or "sem sinais relevantes"
     remetente = parsed.from_domain or "remetente desconhecido"
-    return (f"E-mail de {remetente} classificado como severidade {severity} "
-            f"(score {risk}). Principais evidências: {top}.")
+    return (f"E-mail de {remetente} — severidade {severity}. "
+            f"Principais evidências: {top}. "
+            f"(Índice heurístico advisory: {risk}/100 — não é veredito definitivo.)")
 
 
 def _recommendations(severity: str, auth_findings: list[FindingItem],

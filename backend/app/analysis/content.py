@@ -13,14 +13,17 @@ def analyze_content(parsed: ParsedEmail) -> tuple[list[FindingItem], float]:
     corpus = f"{parsed.subject}\n{parsed.body_text}\n{parsed.body_html}".lower()
     findings: list[FindingItem] = []
     hits = 0
-    for _key, title, kws in _SIGNALS:
-        if any(kw in corpus for kw in kws):
+    for key, title, kws in _SIGNALS:
+        matched = next((kw for kw in kws if kw in corpus), None)
+        if matched:
             hits += 1
             findings.append(FindingItem(
                 category="content",
                 severity="médio",
                 title=title,
                 description="Sinal de engenharia social detectado no assunto/corpo.",
+                rule_id=f"content.{key}",
+                evidence=f'termo: "{matched}"',
             ))
     subscore = min(hits / 3.0, 1.0)  # 3+ distinct signals => saturates
     return findings, subscore

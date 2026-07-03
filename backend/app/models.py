@@ -62,6 +62,8 @@ class Finding(Base):
     title: Mapped[str] = mapped_column(String(200))
     description: Mapped[str] = mapped_column(Text)
     weight_contribution: Mapped[int] = mapped_column(Integer, default=0)
+    rule_id: Mapped[str] = mapped_column(String(64), default="")      # proveniência da regra
+    evidence: Mapped[str] = mapped_column(Text, default="")           # trecho que disparou a regra
 
 
 class Recommendation(Base):
@@ -71,3 +73,14 @@ class Recommendation(Base):
     priority: Mapped[str] = mapped_column(String(10))  # low|medium|high
     action_type: Mapped[str] = mapped_column(String(40))
     description: Mapped[str] = mapped_column(Text)
+
+
+class AuditLog(Base):
+    """Trilha append-only de ações sobre análises (P0-10 / SEC-7). Nunca atualizada nem apagada."""
+    __tablename__ = "audit_logs"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    actor_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    action: Mapped[str] = mapped_column(String(40), index=True)  # analysis.create|delete|purge
+    analysis_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    detail: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now, index=True)

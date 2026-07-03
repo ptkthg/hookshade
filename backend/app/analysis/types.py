@@ -26,6 +26,7 @@ class ParsedEmail:
     urls: list[str]
     attachments: list[AttachmentMeta]
     auth_results_raw: str
+    anchors: list[tuple[str, str]] = field(default_factory=list)  # (href, texto exibido)
 
 
 @dataclass
@@ -43,6 +44,8 @@ class FindingItem:
     title: str
     description: str
     weight_contribution: int = 0
+    rule_id: str = ""          # identidade da regra que gerou o finding (proveniência)
+    evidence: str = ""         # trecho/valor concreto que disparou a regra
 
 
 @dataclass

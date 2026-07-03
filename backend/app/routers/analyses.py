@@ -2,6 +2,8 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, s
 from sqlalchemy.orm import Session
 
 from app.analysis.pipeline import run_analysis
+from app.audit import record_audit
+from app.crypto import encrypt
 from app.deps import get_current_user, get_db
 from app.models import IOC, Analysis, Finding, Recommendation, User
 from app.schemas import (
@@ -17,14 +19,16 @@ def _persist(db: Session, user: User, raw: str, source_type: str, context: str |
     result, sha256 = run_analysis(raw)
     analysis = Analysis(
         submitted_by=user.id, source_type=source_type, status="completed",
-        raw_content=raw, parsed_headers=result.parsed_headers, sha256=sha256,
+        raw_content=encrypt(raw),  # SEC-2: cifra em repouso
+        parsed_headers=result.parsed_headers, sha256=sha256,
         risk_score=result.risk_score, severity=result.severity,
         confidence=result.confidence, summary=result.summary, context=context,
     )
     analysis.iocs = [IOC(type=i.type, value_defanged=i.value_defanged, value_hash=i.value_hash)
                      for i in result.iocs]
     analysis.findings = [Finding(category=f.category, severity=f.severity, title=f.title,
-                                 description=f.description, weight_contribution=f.weight_contribution)
+                                 description=f.description, weight_contribution=f.weight_contribution,
+                                 rule_id=f.rule_id, evidence=f.evidence)
                          for f in result.findings]
     analysis.recommendations = [Recommendation(priority=r.priority, action_type=r.action_type,
                                                description=r.description)
@@ -32,6 +36,8 @@ def _persist(db: Session, user: User, raw: str, source_type: str, context: str |
     db.add(analysis)
     db.commit()
     db.refresh(analysis)
+    record_audit(db, "analysis.create", actor_id=user.id, analysis_id=analysis.id,
+                 detail=f"severity={analysis.severity}")
     return analysis
 
 
@@ -42,7 +48,8 @@ def _to_detail(a: Analysis) -> AnalysisDetail:
         parsed_headers=a.parsed_headers or {},
         iocs=[IOCOut(type=i.type, value_defanged=i.value_defanged, value_hash=i.value_hash) for i in a.iocs],
         findings=[FindingOut(category=f.category, severity=f.severity, title=f.title,
-                             description=f.description, weight_contribution=f.weight_contribution)
+                             description=f.description, weight_contribution=f.weight_contribution,
+                             rule_id=f.rule_id, evidence=f.evidence)
                   for f in a.findings],
         recommendations=[RecommendationOut(priority=r.priority, action_type=r.action_type,
                                           description=r.description)
@@ -98,3 +105,14 @@ def get_analysis(analysis_id: int, user: User = Depends(get_current_user), db: S
     if not a:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Not found")
     return _to_detail(a)
+
+
+@router.delete("/{analysis_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_analysis(analysis_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Exclusão sob demanda (P0-11): remove a análise e registra auditoria."""
+    a = db.get(Analysis, analysis_id)
+    if not a:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Not found")
+    db.delete(a)
+    db.commit()
+    record_audit(db, "analysis.delete", actor_id=user.id, analysis_id=analysis_id)

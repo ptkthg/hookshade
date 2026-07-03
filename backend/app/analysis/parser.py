@@ -7,6 +7,19 @@ from email.utils import parseaddr
 from app.analysis.types import AttachmentMeta, ParsedEmail
 
 _URL_RE = re.compile(r"https?://[^\s\"'<>)\]]+", re.IGNORECASE)
+_ANCHOR_RE = re.compile(r"<a\s+[^>]*?href=[\"']([^\"']+)[\"'][^>]*>(.*?)</a>", re.IGNORECASE | re.DOTALL)
+_TAG_RE = re.compile(r"<[^>]+>")
+
+
+def _extract_anchors(html: str) -> list[tuple[str, str]]:
+    """Pares (href, texto visível) de links http(s). O HTML nunca é renderizado."""
+    anchors: list[tuple[str, str]] = []
+    for href, inner in _ANCHOR_RE.findall(html):
+        if not href.lower().startswith(("http://", "https://")):
+            continue
+        text = " ".join(_TAG_RE.sub(" ", inner).split()).strip()
+        anchors.append((href.strip(), text))
+    return anchors
 
 
 def _domain_of(addr: str) -> str:
@@ -75,4 +88,5 @@ def parse_email(raw: str) -> ParsedEmail:
         urls=urls,
         attachments=attachments,
         auth_results_raw=str(msg.get("Authentication-Results", "")),
+        anchors=_extract_anchors(body_html),
     )
