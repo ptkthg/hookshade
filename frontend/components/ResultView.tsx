@@ -1,9 +1,16 @@
 "use client";
+import Link from "next/link";
 import type { AnalysisDetail, Finding } from "@/lib/types";
 import { SeverityBadge } from "@/components/SeverityBadge";
 import { CopyButton } from "@/components/CopyButton";
 import { EvidenceBlock } from "@/components/EvidenceBlock";
 import { IOCList, iocBlock } from "@/components/IOCList";
+
+/** Extrai {id, version} de um rule_id de regra editável ("rule:{id}:v{ver}"). */
+function parseEditableRule(ruleId?: string): { id: number; version: number } | null {
+  const m = ruleId?.match(/^rule:(\d+):v(\d+)$/);
+  return m ? { id: Number(m[1]), version: Number(m[2]) } : null;
+}
 
 /* Tela de Resultado orientada a investigação defensiva (SOC/Blue Team).
    Fecha o ciclo de explicabilidade: cada finding mostra a evidência concreta
@@ -24,9 +31,10 @@ function Card({ title, right, children }: { title: string; right?: React.ReactNo
   );
 }
 
-function FindingRow({ f }: { f: Finding }) {
+function FindingRow({ f, appliedAt }: { f: Finding; appliedAt: string }) {
   const isMismatch = f.rule_id === URL_MISMATCH_RULE;
-  const accent = isMismatch ? "var(--accent)" : "transparent";
+  const editable = parseEditableRule(f.rule_id);
+  const accent = isMismatch || editable ? "var(--accent)" : "transparent";
   return (
     <li
       className="rounded-md p-3"
@@ -43,17 +51,31 @@ function FindingRow({ f }: { f: Finding }) {
                 URL mascarada
               </span>
             )}
+            {editable && (
+              <Link href={`/regras/${editable.id}`}
+                className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded font-semibold hover:underline"
+                style={{ background: "rgba(124,92,255,0.18)", color: "var(--accent)", border: "1px solid var(--accent)" }}
+                title="regra editável que disparou — clique para ver/justificativa/histórico">
+                Regra editável · v{editable.version}
+              </Link>
+            )}
             <span className="text-xs text-slate-500" title="contribuição ao índice heurístico">
-              +{f.weight_contribution}
+              +{f.weight_contribution} no índice
             </span>
+            <span className="text-[10px] text-slate-600" title="categoria do finding">{f.category}</span>
           </div>
           <p className="text-slate-400 text-sm mt-0.5">{f.description}</p>
           {f.evidence && (
-            <EvidenceBlock evidence={f.evidence} highlight={isMismatch} srLabel={`Copiar evidência: ${f.title}`} />
+            <EvidenceBlock evidence={f.evidence} highlight={isMismatch || !!editable} srLabel={`Copiar evidência: ${f.title}`} />
+          )}
+          {editable && (
+            <p className="text-[10px] text-slate-500 mt-1">
+              aplicada em {new Date(appliedAt).toLocaleString()} · justificativa e histórico na página da regra
+            </p>
           )}
         </div>
         {f.rule_id && (
-          <code className="text-[10px] font-mono text-slate-600 shrink-0 mt-1" title="regra que gerou o finding">
+          <code className="text-[10px] font-mono text-slate-600 shrink-0 mt-1" title="proveniência do finding">
             {f.rule_id}
           </code>
         )}
@@ -67,6 +89,8 @@ export function ResultView({ a }: { a: AnalysisDetail }) {
     (x, y) => (SEV_ORDER[x.severity] ?? 9) - (SEV_ORDER[y.severity] ?? 9) || y.weight_contribution - x.weight_contribution,
   );
   const mismatches = findings.filter((f) => f.rule_id === URL_MISMATCH_RULE).length;
+  const firedRules = findings.filter((f) => parseEditableRule(f.rule_id));
+  const rulesImpact = firedRules.reduce((s, f) => s + f.weight_contribution, 0);
 
   return (
     <main className="max-w-4xl mx-auto p-6 space-y-4">
@@ -95,13 +119,20 @@ export function ResultView({ a }: { a: AnalysisDetail }) {
             ⚠ {mismatches} link com URL exibida diferente da real (mascaramento) — priorize a investigação.
           </div>
         )}
+        {firedRules.length > 0 && (
+          <div className="mt-3 text-xs px-3 py-2 rounded"
+            style={{ background: "rgba(124,92,255,0.10)", color: "var(--accent)" }}>
+            {firedRules.length} regra(s) editável(is) dispararam e somaram +{rulesImpact} ao índice.
+            Cada disparo aparece abaixo com evidência e link para a regra — nenhuma decisão de risco sem rastro.
+          </div>
+        )}
       </section>
 
       {/* Findings + evidências */}
       <Card title="Achados e evidências" right={<span className="text-xs text-slate-500">{findings.length} findings · mais graves primeiro</span>}>
         <ul className="space-y-2">
           {findings.length === 0 && <li className="text-sm text-slate-500">Nenhum sinal relevante detectado.</li>}
-          {findings.map((f, i) => <FindingRow key={i} f={f} />)}
+          {findings.map((f, i) => <FindingRow key={i} f={f} appliedAt={a.created_at} />)}
         </ul>
       </Card>
 

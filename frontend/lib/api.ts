@@ -1,5 +1,8 @@
 import { getToken } from "./auth";
-import type { AnalysisDetail, AnalysisSummary, AuditPage } from "./types";
+import type {
+  AnalysisDetail, AnalysisSummary, AuditPage,
+  CurrentUser, Rule, RuleChange, RuleInput, RuleTestResult,
+} from "./types";
 
 const BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
 
@@ -49,3 +52,35 @@ export async function analyzeFile(file: File, context?: string): Promise<Analysi
   if (context) form.append("context", context);
   return req<AnalysisDetail>("/api/v1/analyses", { method: "POST", body: form });
 }
+
+// ---- Usuário atual (para gating de RBAC na UI) ----
+export const getMe = () => req<CurrentUser>("/api/v1/auth/me");
+
+// ---- Motor de regras editável (P1-3) ----
+const jsonBody = (method: string, body: unknown): RequestInit => ({
+  method,
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify(body),
+});
+
+export function listRules(params: { status?: string; category?: string } = {}) {
+  const q = new URLSearchParams();
+  if (params.status) q.set("status", params.status);
+  if (params.category) q.set("category", params.category);
+  const qs = q.toString();
+  return req<Rule[]>(`/api/v1/rules${qs ? `?${qs}` : ""}`);
+}
+export const getRule = (id: number) => req<Rule>(`/api/v1/rules/${id}`);
+export const getRuleHistory = (id: number) => req<RuleChange[]>(`/api/v1/rules/${id}/history`);
+export const createRule = (r: RuleInput) => req<Rule>("/api/v1/rules", jsonBody("POST", r));
+export const updateRule = (id: number, r: Partial<RuleInput>) =>
+  req<Rule>(`/api/v1/rules/${id}`, jsonBody("PUT", r));
+export const activateRule = (id: number, justification: string) =>
+  req<Rule>(`/api/v1/rules/${id}/activate`, jsonBody("POST", { justification }));
+export const deactivateRule = (id: number, justification: string) =>
+  req<Rule>(`/api/v1/rules/${id}/deactivate`, jsonBody("POST", { justification }));
+export const deleteRule = (id: number, justification: string) =>
+  req<Rule>(`/api/v1/rules/${id}`, jsonBody("DELETE", { justification }));
+export const testRule = (input: {
+  analysis_id: number; category: string; severity: string; condition: Record<string, unknown>;
+}) => req<RuleTestResult>("/api/v1/rules/test", jsonBody("POST", input));

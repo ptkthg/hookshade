@@ -10,6 +10,7 @@ export function Nav() {
       <span className="font-bold tracking-wide" style={{ color: "var(--accent)" }}>HOOKSHADE</span>
       <Link href="/nova-analise" className="text-sm text-slate-300 hover:text-white">Nova Análise</Link>
       <Link href="/historico" className="text-sm text-slate-300 hover:text-white">Histórico</Link>
+      <Link href="/regras" className="text-sm text-slate-300 hover:text-white">Regras</Link>
       <Link href="/auditoria" className="text-sm text-slate-300 hover:text-white">Auditoria</Link>
       <button
         onClick={() => { clearToken(); router.push("/login"); }}

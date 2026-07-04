@@ -17,3 +17,48 @@ export interface AuditEntry {
   analysis_id: number | null; detail: string; created_at: string;
 }
 export interface AuditPage { items: AuditEntry[]; total: number; limit: number; offset: number; }
+
+export interface CurrentUser { id: number; name: string; email: string; role: string; }
+
+export interface Rule {
+  id: number;
+  name: string;
+  description: string;
+  category: string;
+  severity: string;
+  condition: Record<string, unknown>;
+  status: string;            // active | inactive | deleted
+  version: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RuleChange {
+  id: number;
+  version: number;
+  action: string;            // create | update | activate | deactivate | delete
+  severity_snapshot: string;
+  justification: string;
+  changed_by: number | null;
+  changed_at: string;
+}
+
+export interface RuleTestResult {
+  fired: boolean;
+  evidence: string;
+  severity: string;
+  score_delta: number;
+  current_score: number;
+  predicted_score: number;
+  current_severity: string;
+  predicted_severity: string;
+}
+
+export interface RuleInput {
+  name: string;
+  description: string;
+  category: string;
+  severity: string;
+  condition: Record<string, unknown>;
+  justification: string;
+}
