@@ -78,3 +78,54 @@ class AnalysisDetail(AnalysisSummary):
     iocs: list[IOCOut]
     findings: list[FindingOut]
     recommendations: list[RecommendationOut]
+
+
+# ---- Regras de detecção editáveis (P1-3) ----
+
+class RuleIn(BaseModel):
+    name: str
+    description: str = ""
+    category: str
+    severity: str
+    condition: dict
+    justification: str = ""
+
+
+class RuleUpdateIn(BaseModel):
+    name: str | None = None
+    description: str | None = None
+    category: str | None = None
+    severity: str | None = None
+    condition: dict | None = None
+    justification: str = ""
+
+
+class StatusChangeIn(BaseModel):
+    justification: str = ""
+
+
+class RuleOut(BaseModel):
+    id: int
+    name: str
+    description: str
+    category: str
+    severity: str
+    condition: dict
+    status: str
+    version: int
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class RuleChangeOut(BaseModel):
+    id: int
+    version: int
+    action: str
+    severity_snapshot: str
+    justification: str
+    changed_by: int | None
+    changed_at: datetime
+
+    model_config = {"from_attributes": True}

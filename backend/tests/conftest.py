@@ -35,7 +35,7 @@ def client(db_session):
         yield db_session
 
     app.dependency_overrides[get_db] = _override_get_db
-    db_session.add(User(name="Analyst", email="analyst@hookshade.local",
+    db_session.add(User(name="Analyst", email="analyst@hookshade.local", role="admin",
                         password_hash=hash_password("changeme123")))
     db_session.commit()
     with TestClient(app) as c:
