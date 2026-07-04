@@ -1,10 +1,11 @@
 """Casos de uso de regras: cada mutação versiona, historia (RuleChange) e audita (AuditLog)."""
 from app.audit import record_audit
-from app.models import DetectionRule, RuleChange
+from app.models import Analysis, DetectionRule, RuleChange
 from app.rules.validation import validate_condition
 
 VALID_SEVERITIES = {"baixo", "médio", "alto", "crítico"}
 VALID_CATEGORIES = {"auth", "url", "content", "attachment", "structural"}
+_MAX_RULES_PENALTY = 40  # espelha app.analysis.scoring; contribuição prevista limitada
 
 
 def _validate_meta(category: str, severity: str) -> None:
@@ -108,3 +109,45 @@ def list_active_rule_dicts(db) -> list[dict]:
 def rule_history(db, rule_id):
     return (db.query(RuleChange).filter(RuleChange.rule_id == rule_id)
             .order_by(RuleChange.id).all())
+
+
+def test_rule_against_analysis(db, analysis_id, condition, severity, category) -> dict:
+    """Avalia uma regra (rascunho) contra uma análise existente, SEM persistir.
+
+    Decifra o raw da análise, re-parseia e roda o avaliador puro. Retorna se
+    dispararia, a evidência (já redigida no engine) e o impacto previsto no score.
+    Não grava auditoria: é uma simulação read-only de detection-engineering.
+    """
+    # imports locais evitam custo/acoplamento no import do módulo
+    from app.analysis.parser import parse_email
+    from app.analysis.scoring import _severity_from_score
+    from app.crypto import decrypt
+    from app.rules.engine import _SEVERITY_WEIGHT, evaluate_rules
+
+    validate_condition(condition)
+    _validate_meta(category, severity)
+
+    analysis = db.get(Analysis, analysis_id)
+    if analysis is None:
+        raise LookupError("análise inexistente")
+
+    parsed = parse_email(decrypt(analysis.raw_content))
+    synthetic = {"id": 0, "version": 0, "name": "(teste)", "category": category,
+                 "severity": severity, "condition": condition}
+    findings = evaluate_rules(parsed, [synthetic])
+
+    fired = bool(findings)
+    evidence = findings[0].evidence if fired else ""
+    current = analysis.risk_score
+    delta = min(_SEVERITY_WEIGHT.get(severity, 10), _MAX_RULES_PENALTY) if fired else 0
+    predicted = max(0, min(100, current + delta))
+    return {
+        "fired": fired,
+        "evidence": evidence,
+        "severity": severity,
+        "score_delta": delta,
+        "current_score": current,
+        "predicted_score": predicted,
+        "current_severity": analysis.severity,
+        "predicted_severity": _severity_from_score(predicted),
+    }

@@ -129,3 +129,21 @@ class RuleChangeOut(BaseModel):
     changed_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class RuleTestIn(BaseModel):
+    analysis_id: int
+    category: str
+    severity: str
+    condition: dict
+
+
+class RuleTestOut(BaseModel):
+    fired: bool
+    evidence: str
+    severity: str
+    score_delta: int
+    current_score: int
+    predicted_score: int
+    current_severity: str
+    predicted_severity: str
