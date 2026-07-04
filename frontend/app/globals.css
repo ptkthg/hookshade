@@ -1,5 +1,6 @@
 @import "tailwindcss";
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+/* Fontes via next/font/google (self-hosted) entram no Passo 6. Import remoto removido:
+   quebra a ordem de @import pós-Tailwind (erro no Turbopack) e seria bloqueado por CSP em prod. */
 
 :root {
   --bg: #040d1a;
