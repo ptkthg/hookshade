@@ -6,6 +6,7 @@ from app.audit import record_audit
 from app.crypto import encrypt
 from app.deps import get_current_user, get_db
 from app.models import IOC, Analysis, Finding, Recommendation, User
+from app.rules.service import list_active_rule_dicts
 from app.schemas import (
     AnalysisDetail, AnalysisSummary, AnalyzeTextRequest,
     FindingOut, IOCOut, RecommendationOut,
@@ -16,7 +17,7 @@ _MAX_BYTES = 5 * 1024 * 1024
 
 
 def _persist(db: Session, user: User, raw: str, source_type: str, context: str | None) -> Analysis:
-    result, sha256 = run_analysis(raw)
+    result, sha256 = run_analysis(raw, rules=list_active_rule_dicts(db))
     analysis = Analysis(
         submitted_by=user.id, source_type=source_type, status="completed",
         raw_content=encrypt(raw),  # SEC-2: cifra em repouso

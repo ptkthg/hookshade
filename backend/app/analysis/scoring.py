@@ -5,6 +5,9 @@ from app.analysis.content import analyze_content
 from app.analysis.iocs import extract_iocs
 from app.analysis.types import AnalysisResult, FindingItem, ParsedEmail, RecItem
 from app.analysis.url_discrepancy import analyze_url_discrepancy
+from app.rules.engine import evaluate_rules
+
+_MAX_RULES_PENALTY = 40  # P1-3: contribuição total das regras editáveis é limitada e auditável
 
 _WEIGHTS = {"auth": 20, "structural": 25, "content": 20, "attachment": 15}
 _SHORTENERS = {"bit.ly", "tinyurl.com", "t.co", "goo.gl", "ow.ly", "is.gd", "buff.ly"}
@@ -80,7 +83,7 @@ def _confidence(parsed: ParsedEmail) -> str:
     return "low"
 
 
-def score(parsed: ParsedEmail) -> AnalysisResult:
+def score(parsed: ParsedEmail, rules: list[dict] | None = None) -> AnalysisResult:
     auth_findings, auth_sub = analyze_authentication(parsed)
     struct_findings, struct_sub, att_sub = _structural(parsed)
     content_findings, content_sub = analyze_content(parsed)
@@ -110,6 +113,15 @@ def score(parsed: ParsedEmail) -> AnalysisResult:
                 f.weight_contribution = per
 
     all_findings = auth_findings + struct_only + content_findings + att_findings
+
+    # P1-3: regras editáveis AUMENTAM (não substituem) a análise. Cada disparo vira um
+    # finding com rule_id+evidence; a soma dos pesos entra no índice, limitada a _MAX_RULES_PENALTY.
+    rule_findings = evaluate_rules(parsed, rules or [])
+    if rule_findings:
+        all_findings = all_findings + rule_findings
+        rules_penalty = min(sum(f.weight_contribution for f in rule_findings), _MAX_RULES_PENALTY)
+        risk = max(0, min(100, risk + rules_penalty))
+
     severity = _severity_from_score(risk)
     iocs = extract_iocs(parsed)
     recs = _recommendations(severity, auth_findings, struct_only)
