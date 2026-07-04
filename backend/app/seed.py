@@ -14,6 +14,7 @@ def init_db() -> None:
                 name="Analyst",
                 email=settings.seed_email,
                 password_hash=hash_password(settings.seed_password),
+                role="admin",
             ))
             db.commit()
     finally:

@@ -30,3 +30,12 @@ def get_current_user(
     if not user:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "User not found")
     return user
+
+
+def require_role(*roles: str):
+    """Dependência: exige usuário autenticado com um dos papéis. 401 sem auth, 403 sem papel."""
+    def _dep(user: User = Depends(get_current_user)) -> User:
+        if user.role not in roles:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Insufficient role")
+        return user
+    return _dep
