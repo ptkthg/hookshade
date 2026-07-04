@@ -81,7 +81,38 @@ class AuditLog(Base):
     __tablename__ = "audit_logs"
     id: Mapped[int] = mapped_column(primary_key=True)
     actor_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
-    action: Mapped[str] = mapped_column(String(40), index=True)  # analysis.create|delete|purge
+    action: Mapped[str] = mapped_column(String(40), index=True)  # analysis.create|delete|purge|rule.*
     analysis_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     detail: Mapped[str] = mapped_column(Text, default="")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_now, index=True)
+
+
+class DetectionRule(Base):
+    """Regra de detecção editável (P1-3). Condição declarativa em JSON; nunca código."""
+    __tablename__ = "detection_rules"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(120))
+    description: Mapped[str] = mapped_column(Text, default="")
+    category: Mapped[str] = mapped_column(String(20))   # auth|url|content|attachment|structural
+    severity: Mapped[str] = mapped_column(String(10))   # baixo|médio|alto|crítico
+    condition: Mapped[dict] = mapped_column(JSON)
+    status: Mapped[str] = mapped_column(String(10), default="inactive", index=True)  # active|inactive|deleted
+    version: Mapped[int] = mapped_column(Integer, default=1)
+    created_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    updated_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
+
+
+class RuleChange(Base):
+    """Histórico append-only por regra (versão + snapshot + justificativa)."""
+    __tablename__ = "rule_changes"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    rule_id: Mapped[int] = mapped_column(ForeignKey("detection_rules.id"), index=True)
+    version: Mapped[int] = mapped_column(Integer)
+    action: Mapped[str] = mapped_column(String(20))  # create|update|activate|deactivate|delete
+    condition_snapshot: Mapped[dict] = mapped_column(JSON)
+    severity_snapshot: Mapped[str] = mapped_column(String(10))
+    justification: Mapped[str] = mapped_column(Text, default="")
+    changed_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    changed_at: Mapped[datetime] = mapped_column(DateTime, default=_now, index=True)
