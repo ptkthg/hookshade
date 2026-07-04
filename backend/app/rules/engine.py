@@ -4,6 +4,7 @@ import re
 from urllib.parse import urlparse
 
 from app.analysis.types import FindingItem, ParsedEmail
+from app.redaction import redact_pii
 
 _MAX_CORPUS = 20_000
 _SEVERITY_WEIGHT = {"baixo": 5, "médio": 15, "alto": 30, "crítico": 45}
@@ -120,6 +121,6 @@ def evaluate_rules(parsed: ParsedEmail, rules: list[dict]) -> list[FindingItem]:
                 description=f"Regra editável '{r['name']}' disparou.",
                 weight_contribution=_SEVERITY_WEIGHT.get(r["severity"], 10),
                 rule_id=f"rule:{r['id']}:v{r['version']}",
-                evidence="; ".join(evidence)[:500],
+                evidence=redact_pii("; ".join(evidence))[:500],  # não vazar PII do corpo
             ))
     return findings

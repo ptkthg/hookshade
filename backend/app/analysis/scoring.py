@@ -5,6 +5,7 @@ from app.analysis.content import analyze_content
 from app.analysis.iocs import extract_iocs
 from app.analysis.types import AnalysisResult, FindingItem, ParsedEmail, RecItem
 from app.analysis.url_discrepancy import analyze_url_discrepancy
+from app.redaction import redact_pii
 from app.rules.engine import evaluate_rules
 
 _MAX_RULES_PENALTY = 40  # P1-3: contribuição total das regras editáveis é limitada e auditável
@@ -143,9 +144,10 @@ def _summary(parsed: ParsedEmail, severity: str, risk: int, findings: list[Findi
     # Manchete = severidade + evidência; o número é apenas um índice heurístico advisory (SEC-4).
     top = "; ".join(f.title for f in findings[:3]) or "sem sinais relevantes"
     remetente = parsed.from_domain or "remetente desconhecido"
-    return (f"E-mail de {remetente} — severidade {severity}. "
+    text = (f"E-mail de {remetente} — severidade {severity}. "
             f"Principais evidências: {top}. "
             f"(Índice heurístico advisory: {risk}/100 — não é veredito definitivo.)")
+    return redact_pii(text)  # summary é saída visível; nunca vazar PII
 
 
 def _recommendations(severity: str, auth_findings: list[FindingItem],
