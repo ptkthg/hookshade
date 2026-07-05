@@ -1,17 +1,41 @@
 @import "tailwindcss";
-/* Fontes via next/font/google (self-hosted) entram no Passo 6. Import remoto removido:
-   quebra a ordem de @import pós-Tailwind (erro no Turbopack) e seria bloqueado por CSP em prod. */
 
 :root {
-  --bg: #040d1a;
-  --panel: #0a1a2f;
-  --accent: #7c5cff;      /* azul-violeta */
-  --text: #e6edf5;
-  --muted: #8aa0b8;
+  /* Paleta premium (extraída de /preview/premium) */
+  --bg: #04060c;
+  --raise: #070a12;
+  --panel: #0a0e18;
+  --panel-top: #0e1420;
+  --accent: #9b8cff;          /* violeta principal (identidade premium) */
+  --accent-strong: #7c5cff;   /* variação mais escura p/ ênfase quando útil */
+  --accent-dim: #9b8cff26;
+  --hair: #ffffff12;
+  --hair-faint: #ffffff08;
+  --text: #f2f4fa;
+  --muted: #9aa3b6;
+  --faint: #5a6478;
+
+  --radius: 16px;
+  --radius-sm: 10px;
+  --depth: inset 0 1px 0 #ffffff10, 0 2px 4px #00000066, 0 30px 60px -18px #000000cc;
 }
 
+/* next/font expõe --font-display / --font-sans / --font-mono no <html> (via layout). */
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
 }
+
+/* Utilitários de tema premium reaproveitáveis pelas telas funcionais */
+.font-display { font-family: var(--font-display), ui-serif, Georgia, serif; letter-spacing: -0.01em; }
+.font-mono-token { font-family: var(--font-mono), ui-monospace, SFMono-Regular, monospace; }
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--hair-faint);
+  border-radius: var(--radius);
+  box-shadow: var(--depth);
+}
+
+.hairline { border-color: var(--hair); }
