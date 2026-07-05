@@ -24,10 +24,10 @@ export default function RegraDetalhePage({ params }: { params: Promise<{ id: str
   const isAdmin = role === "admin";
 
   async function reload() {
-    setError("");
     try {
       setRule(await getRule(ruleId));
       setHistory(await getRuleHistory(ruleId));
+      setError("");
     } catch (e) {
       setError((e as Error).message);
     }
@@ -35,8 +35,8 @@ export default function RegraDetalhePage({ params }: { params: Promise<{ id: str
 
   useEffect(() => {
     getMe().then((u) => setRole(u.role)).catch(() => {});
-    reload();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    getRule(ruleId).then(setRule).catch((e) => setError((e as Error).message));
+    getRuleHistory(ruleId).then(setHistory).catch((e) => setError((e as Error).message));
   }, [ruleId]);
 
   async function doAction(fn: (id: number, j: string) => Promise<Rule>) {
@@ -79,7 +79,7 @@ export default function RegraDetalhePage({ params }: { params: Promise<{ id: str
       <main className="max-w-4xl mx-auto p-6 space-y-6">
         <div className="flex items-center gap-3">
           <Link href="/regras" className="text-[var(--accent)] text-sm">← regras</Link>
-          <h1 className="text-lg font-semibold">{rule.name}</h1>
+          <h1 className="font-display text-2xl">{rule.name}</h1>
           <SeverityBadge severity={rule.severity} />
           <span className="text-xs text-[var(--muted)]">v{rule.version} · {rule.status}</span>
         </div>

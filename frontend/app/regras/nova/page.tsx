@@ -23,7 +23,7 @@ export default function NovaRegraPage() {
     <>
       <Nav />
       <main className="max-w-3xl mx-auto p-6 space-y-4">
-        <h1 className="text-lg font-semibold">Nova regra</h1>
+        <h1 className="font-display text-2xl">Nova regra</h1>
         {allowed === false && (
           <p className="text-sm text-[#f87171]">
             Sem permissão: criar regras exige perfil administrador.

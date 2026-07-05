@@ -8,9 +8,14 @@ import { Nav } from "@/components/Nav";
 const LIMIT = 50;
 const FILTERS = [
   { value: "", label: "Todas as ações" },
-  { value: "analysis.create", label: "Criação" },
-  { value: "analysis.delete", label: "Exclusão" },
-  { value: "analysis.purge", label: "Purga" },
+  { value: "analysis.create", label: "Análise · criação" },
+  { value: "analysis.delete", label: "Análise · exclusão" },
+  { value: "analysis.purge", label: "Análise · purga" },
+  { value: "rule.create", label: "Regra · criação" },
+  { value: "rule.update", label: "Regra · edição" },
+  { value: "rule.activate", label: "Regra · ativação" },
+  { value: "rule.deactivate", label: "Regra · desativação" },
+  { value: "rule.delete", label: "Regra · exclusão" },
 ];
 
 export default function AuditoriaPage() {
@@ -20,9 +25,8 @@ export default function AuditoriaPage() {
   const [offset, setOffset] = useState(0);
 
   const load = useCallback(() => {
-    setError("");
     listAudit({ action: action || undefined, limit: LIMIT, offset })
-      .then(setPage)
+      .then((p) => { setPage(p); setError(""); })
       .catch((e) => setError((e as Error).message));
   }, [action, offset]);
 
@@ -38,8 +42,8 @@ export default function AuditoriaPage() {
       <Nav />
       <main className="max-w-5xl mx-auto p-6 space-y-4">
         <div className="flex items-center gap-3 flex-wrap">
-          <h1 className="text-lg font-semibold">Auditoria</h1>
-          <span className="text-[10px] uppercase tracking-wide px-2 py-0.5 rounded border border-white/15 text-slate-400">
+          <h1 className="font-display text-2xl">Auditoria</h1>
+          <span className="text-[10px] uppercase tracking-wide px-2 py-0.5 rounded border" style={{ borderColor: "var(--hair)", color: "var(--muted)" }}>
             somente leitura · append-only
           </span>
           <select
@@ -53,8 +57,8 @@ export default function AuditoriaPage() {
           </select>
         </div>
 
-        <p className="text-xs text-slate-500">
-          Trilha de eventos do ciclo de vida das análises (criação, exclusão, purga). Não editável pela aplicação.
+        <p className="text-xs" style={{ color: "var(--faint)" }}>
+          Trilha append-only do ciclo de vida das análises e das regras de detecção. Não editável pela aplicação.
         </p>
 
         {error && <p className="text-red-400 text-sm">{error}</p>}

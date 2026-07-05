@@ -52,7 +52,7 @@ export default function RegrasPage() {
       <Nav />
       <main className="max-w-5xl mx-auto p-6 space-y-4">
         <div className="flex items-center gap-3">
-          <h1 className="text-lg font-semibold">Regras de detecção</h1>
+          <h1 className="font-display text-2xl">Regras de detecção</h1>
           <span className="text-xs text-[var(--muted)]">
             motor defensivo e auditável — regras declarativas, sem execução de código
           </span>

@@ -31,8 +31,8 @@ export default function NovaAnalisePage() {
   return (
     <>
       <Nav />
-      <main className="max-w-2xl mx-auto p-6 space-y-4">
-        <h1 className="text-lg font-semibold">Nova Análise</h1>
+      <main className="max-w-2xl mx-auto p-8 space-y-5">
+        <h1 className="font-display text-2xl">Nova Análise</h1>
         <form onSubmit={onSubmit} className="space-y-4">
           <div>
             <label className="text-sm text-slate-400">Arquivo .eml</label>

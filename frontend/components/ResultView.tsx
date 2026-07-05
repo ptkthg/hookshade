@@ -23,7 +23,7 @@ function Card({ title, right, children }: { title: string; right?: React.ReactNo
   return (
     <section className="p-4 rounded-lg" style={{ background: "var(--panel)" }}>
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-sm font-semibold text-slate-300">{title}</h2>
+        <h2 className="font-display text-base" style={{ color: "var(--text)" }}>{title}</h2>
         {right}
       </div>
       {children}
@@ -98,7 +98,7 @@ export function ResultView({ a }: { a: AnalysisDetail }) {
       <section className="p-5 rounded-lg" style={{ background: "var(--panel)" }}>
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-3">
-            <h1 className="text-lg font-semibold">Análise #{a.id}</h1>
+            <h1 className="font-display text-2xl">Análise #{a.id}</h1>
             <SeverityBadge severity={a.severity} />
             <span className="text-xs text-slate-500">confiança: {a.confidence}</span>
           </div>
