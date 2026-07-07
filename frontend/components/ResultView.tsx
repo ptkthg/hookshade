@@ -18,6 +18,54 @@ function parseEditableRule(ruleId?: string): { id: number; version: number } | n
 
 const SEV_ORDER: Record<string, number> = { "crítico": 0, "alto": 1, "médio": 2, "baixo": 3 };
 const URL_MISMATCH_RULE = "url.display_href_mismatch";
+const CONF_PT: Record<string, string> = { low: "baixa", medium: "média", high: "alta" };
+
+/** Veredito sintetizado APENAS de dados já presentes (findings/severidade/
+ *  recomendações/confiança). Não inventa evidência nem infere além das categorias
+ *  realmente detectadas; usa linguagem cautelosa ("Possível…"), sem sensacionalismo. */
+function buildVerdict(a: AnalysisDetail): { intent: string; evidence: string; action: string; note: string } {
+  const cats = new Set(a.findings.map((f) => f.category));
+  const ruleIds = a.findings.map((f) => f.rule_id || "");
+  const hasMasked = ruleIds.includes(URL_MISMATCH_RULE);
+  // "spoofing" só quando há falha/desalinhamento real — não a mera ausência (none) de SPF/DKIM/DMARC.
+  const hasSpoofing = ruleIds.some((r) => r.includes("fail") || r.includes("misalignment") || r.includes("mismatch"));
+
+  const ordered = [...a.findings].sort(
+    (x, y) => (SEV_ORDER[x.severity] ?? 9) - (SEV_ORDER[y.severity] ?? 9) || y.weight_contribution - x.weight_contribution,
+  );
+  const top = ordered[0];
+
+  let intent: string;
+  if (a.findings.length === 0 || a.severity === "baixo") intent = "Sem sinais relevantes de phishing";
+  else if (cats.has("attachment")) intent = "Possível entrega de anexo malicioso";
+  else if (hasMasked || (cats.has("url") && cats.has("content"))) intent = "Possível roubo de credencial (site falso)";
+  else if (hasSpoofing) intent = "Possível remetente forjado (spoofing)";
+  else if (top?.category === "url") intent = "Direcionamento a site suspeito";
+  else if (top?.category === "content") intent = "Linguagem de manipulação (engenharia social)";
+  else if (cats.has("auth")) intent = "Autenticação do remetente incompleta (SPF/DKIM/DMARC ausentes)";
+  else intent = "Sinais suspeitos a investigar";
+  const evidence = ordered.slice(0, 2).map((f) => f.title).join("; ") || "sem achados relevantes";
+  const action = a.recommendations[0]?.description || "Manter monitoramento padrão.";
+  const note = `Confiança ${CONF_PT[a.confidence] ?? a.confidence} · índice advisory (não é veredito definitivo); autenticação lida do header, não revalidada por DNS.`;
+  return { intent, evidence, action, note };
+}
+
+function VerdictBanner({ a }: { a: AnalysisDetail }) {
+  const v = buildVerdict(a);
+  return (
+    <section className="p-5 rounded-lg" style={{ background: "var(--panel)", borderLeft: "3px solid var(--accent)" }}>
+      <div className="text-[10px] uppercase tracking-widest mb-1" style={{ color: "var(--faint)" }}>veredito</div>
+      <p className="font-display text-lg leading-snug">{v.intent}</p>
+      <p className="text-sm mt-2" style={{ color: "var(--muted)" }}>
+        <span style={{ color: "var(--text)" }}>Principais evidências:</span> {v.evidence}.
+      </p>
+      <p className="text-sm mt-1" style={{ color: "var(--muted)" }}>
+        <span style={{ color: "var(--text)" }}>Ação recomendada:</span> {v.action}
+      </p>
+      <p className="text-[11px] mt-2" style={{ color: "var(--faint)" }}>{v.note}</p>
+    </section>
+  );
+}
 
 function Card({ title, right, children }: { title: string; right?: React.ReactNode; children: React.ReactNode }) {
   return (
@@ -94,6 +142,9 @@ export function ResultView({ a }: { a: AnalysisDetail }) {
 
   return (
     <main className="max-w-4xl mx-auto p-6 space-y-4">
+      {/* Veredito: o quê + evidência + ação, em linguagem direta (Krug) */}
+      <VerdictBanner a={a} />
+
       {/* Resumo executivo */}
       <section className="p-5 rounded-lg" style={{ background: "var(--panel)" }}>
         <div className="flex items-start justify-between gap-4 flex-wrap">
