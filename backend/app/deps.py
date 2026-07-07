@@ -1,4 +1,4 @@
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
@@ -18,6 +18,7 @@ def get_db():
 
 
 def get_current_user(
+    request: Request,
     creds: HTTPAuthorizationCredentials | None = Depends(_bearer),
     db: Session = Depends(get_db),
 ) -> User:
@@ -30,6 +31,7 @@ def get_current_user(
     # inactive não autentica: token emitido antes da desativação deixa de valer
     if not user or user.status != "active":
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "User not found")
+    request.state.user_id = user.id  # correlação no log de request (id, nunca e-mail)
     return user
 
 

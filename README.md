@@ -134,6 +134,15 @@ estiverem fracos/default — ver "Deploy de portfólio".
 | `HOOKSHADE_DATABASE_URL` | `sqlite:///./hookshade.db` | **use Postgres** em produção |
 | `HOOKSHADE_RETENTION_DAYS` | `90` | prazo de retenção do `raw_content` antes da purga |
 | `HOOKSHADE_ACCESS_TOKEN_EXPIRE_MINUTES` | `30` | expiração do token de acesso |
+| `HOOKSHADE_LOGIN_MAX_ATTEMPTS` | `10` | falhas seguidas de login até lockout temporário da conta |
+| `HOOKSHADE_LOGIN_LOCKOUT_MINUTES` | `15` | duração do lockout da conta |
+| `HOOKSHADE_RATE_LIMIT_LOGIN_PER_MINUTE` | `10` | requisições de login por IP/minuto (janela deslizante) |
+| `HOOKSHADE_RATE_LIMIT_ANALYSES_PER_MINUTE` | `30` | criações de análise por IP/minuto |
+
+O rate limiting é **em memória, por processo** — suficiente para a instância única atual;
+multi-instância exigirá backend compartilhado (Redis). Logs de requisição saem em **JSON
+estruturado** no stdout (request_id, método, rota, status, latência, user_id) e **nunca**
+contêm senha, token, `raw_content` ou e-mail; `/health` é liveness e `/ready` verifica o banco.
 
 Frontend: `NEXT_PUBLIC_API_BASE` (URL do backend). Gere segredos com
 `python -c "import secrets; print(secrets.token_urlsafe(48))"`.

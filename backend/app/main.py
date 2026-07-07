@@ -9,10 +9,12 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.deps import get_db
+from app.request_logging import configure_logging, install_request_logging
 from app.routers import analyses, audit, auth, rules
 from app.seed import init_db
 
 logger = logging.getLogger("hookshade")
+configure_logging()
 
 
 @asynccontextmanager
@@ -28,6 +30,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Hookshade API", version="0.1.0", lifespan=lifespan)
+
+install_request_logging(app)
 
 app.add_middleware(
     CORSMiddleware,
