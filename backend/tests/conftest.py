@@ -3,7 +3,17 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+import app.models  # noqa: F401 — registra todas as tabelas no metadata antes do create_all
 from app.database import Base
+from app.ratelimit import limiter
+
+
+@pytest.fixture(autouse=True)
+def _reset_rate_limiter():
+    # estado do limiter é global ao processo; zera para manter testes independentes
+    limiter.reset()
+    yield
+    limiter.reset()
 
 
 @pytest.fixture

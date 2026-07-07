@@ -17,6 +17,8 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 30
     login_max_attempts: int = 10      # falhas seguidas até lockout da conta
     login_lockout_minutes: int = 15   # duração do lockout
+    rate_limit_login_per_minute: int = 10       # por IP, janela deslizante de 60s
+    rate_limit_analyses_per_minute: int = 30    # por IP, criação de análise
     database_url: str = "sqlite:///./hookshade.db"
     seed_email: str = "analyst@hookshade.local"
     seed_password: str = DEFAULT_SEED_PASSWORD

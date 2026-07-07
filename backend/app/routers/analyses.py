@@ -6,6 +6,7 @@ from app.audit import record_audit
 from app.crypto import encrypt
 from app.deps import get_current_user, get_db
 from app.models import IOC, Analysis, Finding, Recommendation, User
+from app.ratelimit import rate_limit_analyses
 from app.rules.service import list_active_rule_dicts
 from app.schemas import (
     AnalysisDetail, AnalysisSummary, AnalyzeTextRequest,
@@ -71,7 +72,7 @@ def _to_detail(a: Analysis) -> AnalysisDetail:
     )
 
 
-@router.post("", response_model=AnalysisDetail)
+@router.post("", response_model=AnalysisDetail, dependencies=[Depends(rate_limit_analyses)])
 async def create_analysis(
     file: UploadFile | None = File(default=None),
     content: str | None = Form(default=None),
@@ -94,7 +95,7 @@ async def create_analysis(
     return _to_detail(analysis)
 
 
-@router.post("/text", response_model=AnalysisDetail)
+@router.post("/text", response_model=AnalysisDetail, dependencies=[Depends(rate_limit_analyses)])
 def create_analysis_text(
     body: AnalyzeTextRequest,
     user: User = Depends(get_current_user),

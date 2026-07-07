@@ -7,6 +7,7 @@ from app.audit import record_audit
 from app.config import settings
 from app.deps import get_current_user, get_db
 from app.models import User
+from app.ratelimit import rate_limit_login
 from app.schemas import LoginRequest, TokenResponse, UserOut
 from app.security import create_access_token, verify_password
 
@@ -35,7 +36,7 @@ def _register_failure(db: Session, user: User) -> None:
     db.commit()
 
 
-@router.post("/login", response_model=TokenResponse)
+@router.post("/login", response_model=TokenResponse, dependencies=[Depends(rate_limit_login)])
 def login(body: LoginRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == body.email).first()
     if not user or user.status != "active":
