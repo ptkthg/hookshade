@@ -12,8 +12,6 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
-    // Scaffolding de exploração visual (temporário; será removido após validação da landing).
-    "app/preview/**",
   ]),
 ]);
 
