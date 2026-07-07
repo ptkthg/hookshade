@@ -105,28 +105,47 @@ Agende diariamente — **cron:** `0 3 * * * cd /caminho/backend && .venv/bin/pyt
 
 ## Variáveis de ambiente (backend, prefixo `HOOKSHADE_`)
 
+Em `HOOKSHADE_ENV=production`, a aplicação **recusa subir** (fail-closed) se os segredos
+estiverem fracos/default — ver "Deploy de portfólio".
+
 | Variável | Padrão | Descrição |
 |----------|--------|-----------|
-| `HOOKSHADE_SECRET_KEY` | (trocar!) | assina JWT; use ≥ 32 bytes aleatórios em produção |
-| `HOOKSHADE_ENCRYPTION_KEY` | vazio | chave Fernet da cifra em repouso; se vazio, deriva do secret_key |
+| `HOOKSHADE_ENV` | `development` | `production` ativa o gate de segurança no startup |
+| `HOOKSHADE_SECRET_KEY` | (trocar!) | assina JWT; **obrigatória e ≥ 32 chars** em produção |
+| `HOOKSHADE_ENCRYPTION_KEY` | vazio | chave Fernet da cifra em repouso; **obrigatória e ≥ 32 chars** em produção (em dev, deriva do secret_key) |
+| `HOOKSHADE_SEED_EMAIL` / `HOOKSHADE_SEED_PASSWORD` | seed | admin inicial; **troque a senha** em produção |
+| `HOOKSHADE_CORS_ORIGINS` | `http://localhost:3000` | origens permitidas (CSV); **sem curinga** em produção |
+| `HOOKSHADE_DATABASE_URL` | `sqlite:///./hookshade.db` | **use Postgres** em produção |
 | `HOOKSHADE_RETENTION_DAYS` | `90` | prazo de retenção do `raw_content` antes da purga |
 | `HOOKSHADE_ACCESS_TOKEN_EXPIRE_MINUTES` | `30` | expiração do token de acesso |
-| `HOOKSHADE_DATABASE_URL` | `sqlite:///./hookshade.db` | troque por Postgres em produção |
-| `HOOKSHADE_SEED_EMAIL` / `HOOKSHADE_SEED_PASSWORD` | seed | credenciais do usuário admin inicial |
-| `HOOKSHADE_CORS_ORIGINS` | `http://localhost:3000` | origens permitidas (CSV) — **restrinja em produção** |
 
-Frontend: `NEXT_PUBLIC_API_BASE` (URL do backend).
+Frontend: `NEXT_PUBLIC_API_BASE` (URL do backend). Gere segredos com
+`python -c "import secrets; print(secrets.token_urlsafe(48))"`.
 
-## Deploy
+## Deploy de portfólio
 
-- **Frontend:** Vercel (ou equivalente). Definir `NEXT_PUBLIC_API_BASE` para a URL pública do backend.
-- **Backend:** qualquer host de contêiner/WSGI-ASGI (Railway, Fly, Render…). Rodar
-  `uvicorn app.main:app`. Definir todos os segredos por variável de ambiente (nunca commitar `.env`).
-- **CORS restrito:** setar `HOOKSHADE_CORS_ORIGINS` só com o domínio do frontend.
-- **Banco persistente:** usar Postgres via `HOOKSHADE_DATABASE_URL` (o SQLite local não sobrevive a
-  redeploys efêmeros). *Nota:* o schema é criado por `create_all`; ao evoluir colunas/tabelas, recriar o
-  banco de dev ou introduzir migrações (Alembic) — ver limitações.
-- **Logs sem dados sensíveis:** a auditoria não grava `raw_content`; mantenha esse princípio nos logs.
+> **Escopo:** isto é uma **peça de portfólio demonstrável**, não um SaaS multiusuário de
+> produção. Ver "Portfólio vs. produção real" e "Limitações conhecidas".
+
+1. **Segredos fortes:** setar `HOOKSHADE_ENV=production`, `HOOKSHADE_SECRET_KEY` e
+   `HOOKSHADE_ENCRYPTION_KEY` (≥ 32 chars, aleatórios), trocar `HOOKSHADE_SEED_PASSWORD`.
+   Se algum estiver fraco/default, o backend **não sobe** (proposital).
+2. **Backend:** host de contêiner/ASGI (Railway, Fly, Render…), `uvicorn app.main:app`.
+   Provisionar Postgres e apontar `HOOKSHADE_DATABASE_URL`. Segredos por variável de ambiente
+   (nunca commitar `.env`).
+3. **CORS restrito:** `HOOKSHADE_CORS_ORIGINS` só com o domínio do frontend.
+4. **Frontend:** Vercel (ou equivalente), `NEXT_PUBLIC_API_BASE` = URL pública do backend.
+5. **Logs sem dados sensíveis:** auditoria não grava `raw_content`; mantenha o princípio.
+
+## Portfólio vs. produção real
+
+| Já resolvido (portfólio) | Falta para produção multiusuário real |
+|--------------------------|----------------------------------------|
+| Segredos fortes obrigatórios (gate) | Migrações de schema (Alembic) |
+| CORS restrito | Rate limiting / proteção a brute-force |
+| Cifra em repouso + redação de PII | Tamper-evidence da auditoria (hash-chain/assinatura) |
+| RBAC (admin/analyst) | Refresh tokens / revogação de JWT |
+| Auditoria append-only | RBAC granular, monitoração, backups |
 
 ## Testes e verificação
 
