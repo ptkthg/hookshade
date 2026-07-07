@@ -156,6 +156,39 @@ backend/.venv/Scripts/python -m pytest
 cd frontend && npx tsc --noEmit && npm run build
 ```
 
+## Smoke pós-deploy
+
+Após publicar, valide o ambiente ao vivo com `scripts/postdeploy-smoke.cjs` (Playwright).
+É parametrizado por variáveis de ambiente — **sem segredo no arquivo**, sem localhost fixo,
+sem pressupor usuário `viewer` (o seed de produção é admin). Cria uma análise de teste e uma
+regra que fica **inativa** (não polui o score); não apaga dados.
+
+```bash
+cd scripts
+npm install && npx playwright install chromium   # 1ª vez
+
+# bash/CI:
+HOOKSHADE_FRONTEND_URL="https://SEU-FRONT.vercel.app" \
+HOOKSHADE_API_URL="https://SEU-API.up.railway.app" \
+HOOKSHADE_ADMIN_EMAIL="seu-admin@exemplo.com" \
+HOOKSHADE_ADMIN_PASSWORD="sua-senha-forte" \
+node postdeploy-smoke.cjs
+```
+
+```powershell
+# PowerShell (Windows):
+$env:HOOKSHADE_FRONTEND_URL="https://SEU-FRONT.vercel.app"
+$env:HOOKSHADE_API_URL="https://SEU-API.up.railway.app"
+$env:HOOKSHADE_ADMIN_EMAIL="seu-admin@exemplo.com"
+$env:HOOKSHADE_ADMIN_PASSWORD="sua-senha-forte"
+node postdeploy-smoke.cjs
+```
+
+Valida: landing pública, `/preview/*` → 404, login admin, nova análise, histórico escopado,
+manchete "veredito + ação", criar/testar/ativar/desativar regra, e ausência de token/segredo/
+stacktrace na tela. Sai com código ≠ 0 se algum passo falhar (CI-friendly).
+`viewer` e acesso a análise alheia (IDOR) já são cobertos pela suíte de testes do backend.
+
 ## Limitações conhecidas
 
 - Schema via `create_all` (sem migrações). Alterou modelo? Recrie o banco de dev ou adote Alembic.

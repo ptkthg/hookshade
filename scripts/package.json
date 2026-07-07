@@ -1,0 +1,12 @@
+{
+  "name": "hookshade-postdeploy-smoke",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Smoke pós-deploy da Hookshade (Playwright), parametrizado por variáveis de ambiente.",
+  "scripts": {
+    "smoke": "node postdeploy-smoke.cjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.49.1"
+  }
+}
