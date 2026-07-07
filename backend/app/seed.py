@@ -4,9 +4,17 @@ from app.models import User
 from app.security import hash_password
 
 
-def init_db() -> None:
+def ensure_schema() -> None:
+    """Cria o schema via create_all — CONVENIÊNCIA DE DEV/TESTE apenas.
+
+    Em produção o schema é gerido exclusivamente por Alembic
+    (`alembic upgrade head`, executado antes do start — ver Procfile/README).
+    """
     Base.metadata.create_all(bind=engine)
-    db = SessionLocal()
+
+
+def ensure_seed_user(session_factory=SessionLocal) -> None:
+    db = session_factory()
     try:
         existing = db.query(User).filter(User.email == settings.seed_email).first()
         if not existing:
@@ -19,6 +27,12 @@ def init_db() -> None:
             db.commit()
     finally:
         db.close()
+
+
+def init_db() -> None:
+    if not settings.is_production:
+        ensure_schema()
+    ensure_seed_user()
 
 
 if __name__ == "__main__":

@@ -37,6 +37,22 @@ API em `http://localhost:8000` · docs interativas em `/docs`.
 **Testes:** `.venv/Scripts/python -m pytest` (a suíte precisa do interpretador do venv; o Python global
 pode não ter as dependências).
 
+## Migrações de schema (Alembic)
+
+O schema é versionado por **Alembic** — em produção ele é o único mecanismo de criação/evolução
+(o `Procfile` roda `alembic upgrade head` antes do start; `create_all` fica restrito a dev/teste).
+
+```bash
+cd backend
+.venv/Scripts/python -m alembic upgrade head                      # aplica migrações pendentes
+.venv/Scripts/python -m alembic revision --autogenerate -m "..."  # gera migração após mudar modelos
+.venv/Scripts/python -m alembic downgrade -1                      # reverte a última migração
+```
+
+A URL do banco vem de `HOOKSHADE_DATABASE_URL` (mesma configuração da app). Alterou um modelo em
+`app/models.py`? Gere a migração, revise o arquivo em `alembic/versions/` e rode os testes —
+`tests/test_migrations.py` falha se o schema migrado divergir dos modelos.
+
 ## Setup — Frontend
 
 ```bash
