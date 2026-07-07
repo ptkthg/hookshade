@@ -16,6 +16,19 @@ router = APIRouter(prefix="/api/v1/analyses", tags=["analyses"])
 _MAX_BYTES = 5 * 1024 * 1024
 
 
+def _get_owned_or_404(db: Session, analysis_id: int, user: User) -> Analysis:
+    """Retorna a análise se o usuário pode acessá-la; senão 404.
+
+    Autorização por dono (anti-IDOR/BOLA): analyst/viewer só acessam as próprias
+    análises; admin (SOC lead) tem privilégio global explícito. Para quem não pode,
+    a resposta é 404 idêntica à de análise inexistente — sem revelar existência.
+    """
+    a = db.get(Analysis, analysis_id)
+    if a is None or (user.role != "admin" and a.submitted_by != user.id):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Not found")
+    return a
+
+
 def _persist(db: Session, user: User, raw: str, source_type: str, context: str | None) -> Analysis:
     result, sha256 = run_analysis(raw, rules=list_active_rule_dicts(db))
     analysis = Analysis(
@@ -94,7 +107,10 @@ def create_analysis_text(
 
 @router.get("", response_model=list[AnalysisSummary])
 def list_analyses(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    rows = db.query(Analysis).order_by(Analysis.created_at.desc()).all()
+    q = db.query(Analysis)
+    if user.role != "admin":  # admin (SOC lead) enxerga a fila toda; demais, só as próprias
+        q = q.filter(Analysis.submitted_by == user.id)
+    rows = q.order_by(Analysis.created_at.desc()).all()
     return [AnalysisSummary(id=a.id, source_type=a.source_type, severity=a.severity,
                             risk_score=a.risk_score, confidence=a.confidence,
                             summary=a.summary, created_at=a.created_at) for a in rows]
@@ -102,18 +118,13 @@ def list_analyses(user: User = Depends(get_current_user), db: Session = Depends(
 
 @router.get("/{analysis_id}", response_model=AnalysisDetail)
 def get_analysis(analysis_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    a = db.get(Analysis, analysis_id)
-    if not a:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Not found")
-    return _to_detail(a)
+    return _to_detail(_get_owned_or_404(db, analysis_id, user))
 
 
 @router.delete("/{analysis_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_analysis(analysis_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    """Exclusão sob demanda (P0-11): remove a análise e registra auditoria."""
-    a = db.get(Analysis, analysis_id)
-    if not a:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Not found")
+    """Exclusão sob demanda (P0-11): remove a análise (do dono ou admin) e audita."""
+    a = _get_owned_or_404(db, analysis_id, user)
     db.delete(a)
     db.commit()
     record_audit(db, "analysis.delete", actor_id=user.id, analysis_id=analysis_id)
