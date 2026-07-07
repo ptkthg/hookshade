@@ -27,6 +27,12 @@ body {
   font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
 }
 
+/* main é filho flex do body. Com mx-auto, a margem automática desliga o stretch
+   e o main passa a ser dimensionado pelo conteúdo (estourando a viewport no mobile).
+   width:100% + min-width:0 trava a largura no container; as classes max-w e mx-auto
+   seguem centralizando no desktop, e os overflow-x-auto internos (tabelas) rolam. */
+main { width: 100%; min-width: 0; }
+
 /* Utilitários de tema premium reaproveitáveis pelas telas funcionais */
 .font-display { font-family: var(--font-display), ui-serif, Georgia, serif; letter-spacing: -0.01em; }
 .font-mono-token { font-family: var(--font-mono), ui-monospace, SFMono-Regular, monospace; }
@@ -39,3 +45,10 @@ body {
 }
 
 .hairline { border-color: var(--hair); }
+
+/* Acessibilidade: foco de teclado visível em todos os elementos interativos */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}

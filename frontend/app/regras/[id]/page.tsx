@@ -139,25 +139,27 @@ export default function RegraDetalhePage({ params }: { params: Promise<{ id: str
 
         <div className="rounded-lg border border-white/10 p-4">
           <h2 className="text-sm font-semibold mb-2">Histórico de alterações</h2>
-          <table className="w-full text-sm">
-            <thead className="text-[var(--muted)] text-left">
-              <tr><th className="py-1">Versão</th><th>Ação</th><th>Severidade</th><th>Justificativa</th><th>Quando</th></tr>
-            </thead>
-            <tbody>
-              {history.map((h) => (
-                <tr key={h.id} className="border-t border-white/5">
-                  <td className="py-1">v{h.version}</td>
-                  <td>{h.action}</td>
-                  <td>{h.severity_snapshot}</td>
-                  <td className="text-[var(--muted)]">{h.justification || "—"}</td>
-                  <td className="text-[var(--muted)]">{dt(h.changed_at)}</td>
-                </tr>
-              ))}
-              {history.length === 0 && (
-                <tr><td colSpan={5} className="py-4 text-center text-[var(--muted)]">Sem histórico.</td></tr>
-              )}
-            </tbody>
-          </table>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[520px] text-sm">
+              <thead className="text-[var(--muted)] text-left">
+                <tr><th className="py-1">Versão</th><th>Ação</th><th>Severidade</th><th>Justificativa</th><th className="whitespace-nowrap">Quando</th></tr>
+              </thead>
+              <tbody>
+                {history.map((h) => (
+                  <tr key={h.id} className="border-t border-white/5">
+                    <td className="py-1">v{h.version}</td>
+                    <td>{h.action}</td>
+                    <td>{h.severity_snapshot}</td>
+                    <td className="text-[var(--muted)]">{h.justification || "—"}</td>
+                    <td className="text-[var(--muted)] whitespace-nowrap">{dt(h.changed_at)}</td>
+                  </tr>
+                ))}
+                {history.length === 0 && (
+                  <tr><td colSpan={5} className="py-4 text-center text-[var(--muted)]">Sem histórico.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </main>
     </>

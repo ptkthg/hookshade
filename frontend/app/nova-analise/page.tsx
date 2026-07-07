@@ -47,6 +47,7 @@ export default function NovaAnalisePage() {
           <textarea
             className="w-full h-48 p-2 rounded bg-black/30 border border-white/10 font-mono text-sm"
             placeholder="Cole o e-mail bruto aqui"
+            aria-label="Conteúdo bruto do e-mail"
             value={text}
             onChange={(e) => setText(e.target.value)}
             disabled={!!file}

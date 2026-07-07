@@ -65,7 +65,7 @@ export default function RegrasPage() {
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <input className={sel} placeholder="Buscar por nome/descrição…" value={q}
+          <input className={sel} placeholder="Buscar por nome/descrição…" aria-label="Buscar regras" value={q}
                  onChange={(e) => setQ(e.target.value)} />
           <select className={sel} value={category} onChange={(e) => setCategory(e.target.value)}>
             {CATEGORIES.map((c) => <option key={c} value={c}>{c || "categoria: todas"}</option>)}
@@ -85,26 +85,28 @@ export default function RegrasPage() {
           </p>
         )}
 
-        <table className="w-full text-sm">
-          <thead className="text-[var(--muted)] text-left">
-            <tr><th className="py-2">#</th><th>Nome</th><th>Categoria</th><th>Severidade</th><th>Status</th><th>Versão</th></tr>
-          </thead>
-          <tbody>
-            {filtered.map((r) => (
-              <tr key={r.id} className="border-t border-white/5 hover:bg-white/5">
-                <td className="py-2"><Link href={`/regras/${r.id}`} className="text-[var(--accent)]">{r.id}</Link></td>
-                <td><Link href={`/regras/${r.id}`} className="hover:underline">{r.name}</Link></td>
-                <td className="text-[var(--muted)]">{r.category}</td>
-                <td><SeverityBadge severity={r.severity} /></td>
-                <td><StatusPill status={r.status} /></td>
-                <td className="text-[var(--muted)]">v{r.version}</td>
-              </tr>
-            ))}
-            {filtered.length === 0 && !error && (
-              <tr><td colSpan={6} className="py-8 text-center text-[var(--muted)]">Nenhuma regra encontrada.</td></tr>
-            )}
-          </tbody>
-        </table>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[560px] text-sm">
+            <thead className="text-[var(--muted)] text-left">
+              <tr><th className="py-2">#</th><th>Nome</th><th>Categoria</th><th>Severidade</th><th>Status</th><th>Versão</th></tr>
+            </thead>
+            <tbody>
+              {filtered.map((r) => (
+                <tr key={r.id} className="border-t border-white/5 hover:bg-white/5">
+                  <td className="py-2"><Link href={`/regras/${r.id}`} className="text-[var(--accent)]">{r.id}</Link></td>
+                  <td><Link href={`/regras/${r.id}`} className="hover:underline">{r.name}</Link></td>
+                  <td className="text-[var(--muted)]">{r.category}</td>
+                  <td><SeverityBadge severity={r.severity} /></td>
+                  <td><StatusPill status={r.status} /></td>
+                  <td className="text-[var(--muted)]">v{r.version}</td>
+                </tr>
+              ))}
+              {filtered.length === 0 && !error && (
+                <tr><td colSpan={6} className="py-8 text-center text-[var(--muted)]">Nenhuma regra encontrada.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </main>
     </>
   );

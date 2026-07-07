@@ -82,7 +82,7 @@ export function RuleForm({
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className={label}>Nome</label>
-          <input className={input} value={name} onChange={(e) => setName(e.target.value)} />
+          <input className={input} aria-label="Nome da regra" value={name} onChange={(e) => setName(e.target.value)} />
         </div>
         <div>
           <label className={label}>Descrição</label>
@@ -107,6 +107,7 @@ export function RuleForm({
         <textarea
           className={`${input} font-mono h-52`}
           spellCheck={false}
+          aria-label="Condição declarativa da regra (JSON)"
           value={conditionText}
           onChange={(e) => setConditionText(e.target.value)}
         />
@@ -130,7 +131,7 @@ export function RuleForm({
 
       <div>
         <label className={label}>Justificativa (auditoria)</label>
-        <input className={input} value={justification} onChange={(e) => setJustification(e.target.value)}
+        <input className={input} aria-label="Justificativa" value={justification} onChange={(e) => setJustification(e.target.value)}
                placeholder="Por que esta regra/mudança?" />
       </div>
 

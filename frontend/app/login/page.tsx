@@ -46,6 +46,7 @@ export default function LoginPage() {
               className={field}
               style={{ background: "var(--panel-top)", border: "1px solid var(--hair)" }}
               placeholder="E-mail"
+              aria-label="E-mail"
               autoComplete="username"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -55,6 +56,7 @@ export default function LoginPage() {
               style={{ background: "var(--panel-top)", border: "1px solid var(--hair)" }}
               type="password"
               placeholder="Senha"
+              aria-label="Senha"
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}

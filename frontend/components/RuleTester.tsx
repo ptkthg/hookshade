@@ -47,11 +47,12 @@ export function RuleTester({
         <p className="text-xs text-[var(--muted)]">Simulação read-only — não altera o score da análise nem gera auditoria.</p>
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <select className={input} value={selected}
+        <select className={`${input} w-full sm:w-auto max-w-full min-w-0`} value={selected}
+                aria-label="Escolher análise para o teste"
                 onChange={(e) => setSelected(e.target.value ? Number(e.target.value) : "")}>
           {analyses.length === 0 && <option value="">Nenhuma análise disponível</option>}
           {analyses.map((a) => (
-            <option key={a.id} value={a.id}>#{a.id} — {a.severity} — {a.summary.slice(0, 50)}</option>
+            <option key={a.id} value={a.id}>#{a.id} — {a.severity} — {a.summary.slice(0, 40)}</option>
           ))}
         </select>
         <button onClick={run} disabled={busy || selected === ""}
