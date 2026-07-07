@@ -20,6 +20,9 @@ class User(Base):
     role: Mapped[str] = mapped_column(String(20), default="analyst")  # analyst | admin
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    failed_login_attempts: Mapped[int] = mapped_column(Integer, default=0)
+    locked_until: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    last_failed_login_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
 
 class Analysis(Base):

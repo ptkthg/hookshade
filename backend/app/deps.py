@@ -27,7 +27,8 @@ def get_current_user(
     if not email:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid token")
     user = db.query(User).filter(User.email == email).first()
-    if not user:
+    # inactive não autentica: token emitido antes da desativação deixa de valer
+    if not user or user.status != "active":
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "User not found")
     return user
 

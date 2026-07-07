@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     encryption_key: str = ""          # cifra em repouso; OBRIGATÓRIA e forte em produção (SEC-2)
     retention_days: int = 90          # retenção do raw_content antes de purga (P0-11)
     access_token_expire_minutes: int = 30
+    login_max_attempts: int = 10      # falhas seguidas até lockout da conta
+    login_lockout_minutes: int = 15   # duração do lockout
     database_url: str = "sqlite:///./hookshade.db"
     seed_email: str = "analyst@hookshade.local"
     seed_password: str = DEFAULT_SEED_PASSWORD
