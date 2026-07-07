@@ -10,6 +10,8 @@ from app.seed import init_db
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Fail-closed: em produção, recusa subir com segredos fracos/default (SEC).
+    settings.validate_for_production()
     try:
         init_db()
     except Exception:

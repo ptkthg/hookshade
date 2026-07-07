@@ -1,7 +1,9 @@
 """Cifra em repouso do conteúdo sensível (SEC-2 / P0-11).
 
-Fernet (AES-128-CBC + HMAC) da lib `cryptography`. A chave é derivada do segredo
-configurado — em produção, defina HOOKSHADE_ENCRYPTION_KEY dedicado.
+Fernet (AES-128-CBC + HMAC) da lib `cryptography`. Em PRODUÇÃO,
+HOOKSHADE_ENCRYPTION_KEY é obrigatória e forte — garantido pelo gate de startup
+(`settings.validate_for_production()`), que recusa subir sem ela. Em desenvolvimento,
+por conveniência, deriva-se do secret_key quando a chave dedicada está vazia.
 """
 import base64
 import hashlib
