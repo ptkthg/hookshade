@@ -13,6 +13,10 @@ venv/
 .env.*
 !.env.example
 
+# Backups (dumps NUNCA são versionados — contêm dados e usuários)
+backups/
+*.dump
+
 # Node / Next.js
 node_modules/
 .next/

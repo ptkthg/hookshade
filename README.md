@@ -134,6 +134,14 @@ A execução é **idempotente** (segunda rodada remove zero), audita cada remoç
 Falha propaga com exit ≠ 0 para o agendador poder alertar. **Não** há scheduler embutido no
 app web — evita purga duplicada em múltiplos workers e purga dentro de request.
 
+## Backup e restore
+
+Runbook completo em **`docs/operations/backup-restore.md`** — scripts `scripts/db-backup.sh`
+(pg_dump, URL só por variável de ambiente) e `scripts/db-restore.sh` (alvo explícito via
+`RESTORE_DATABASE_URL` + validação automática de `alembic_version` e contagens). Dumps nunca
+são versionados. Periodicidade recomendada: dump diário, teste de restore mensal — restore
+já validado em Postgres temporário (ver registro no runbook).
+
 ## Variáveis de ambiente (backend, prefixo `HOOKSHADE_`)
 
 Em `HOOKSHADE_ENV=production`, a aplicação **recusa subir** (fail-closed) se os segredos
@@ -185,7 +193,8 @@ Frontend: `NEXT_PUBLIC_API_BASE` (URL do backend). Gere segredos com
 | CORS restrito | Rate limiting / proteção a brute-force |
 | Cifra em repouso + redação de PII | Tamper-evidence da auditoria (hash-chain/assinatura) |
 | RBAC (admin/analyst) | Refresh tokens / revogação de JWT |
-| Auditoria append-only | RBAC granular, monitoração, backups |
+| Auditoria append-only | RBAC granular, monitoração |
+| Gestão de usuários por admin + backup/restore testado | MFA, refresh/revogação de sessão, SSO |
 
 ## Testes e verificação
 
