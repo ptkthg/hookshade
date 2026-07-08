@@ -116,8 +116,23 @@ cd backend
 .venv/Scripts/python -m app.tasks.purge --days 30    # sobrescreve o prazo
 ```
 
-Agende diariamente — **cron:** `0 3 * * * cd /caminho/backend && .venv/bin/python -m app.tasks.purge` ·
-**Windows (Task Scheduler):** ação `python -m app.tasks.purge`, "iniciar em" = pasta `backend`.
+> **⚠️ A retenção só é garantia se o job estiver agendado.** Sem agendamento, o prazo de
+> `HOOKSHADE_RETENTION_DAYS` é uma promessa vazia — o comando existe, mas ninguém o executa.
+
+**Agendamento por ambiente (escolha um):**
+
+- **Railway (deploy atual):** crie um **segundo serviço** a partir do mesmo repo/diretório
+  `backend`, com *Start Command* `python -m app.tasks.purge` e **Cron Schedule** `0 3 * * *`
+  (Settings → Cron Schedule; o serviço roda, sai e o Railway o reexecuta no horário).
+  Use as mesmas variáveis `HOOKSHADE_*` do serviço web (em especial `DATABASE_URL`).
+- **cron (Linux/macOS):** `0 3 * * * cd /caminho/backend && .venv/bin/python -m app.tasks.purge`
+- **Windows (Task Scheduler):** ação `python -m app.tasks.purge`, "iniciar em" = pasta `backend`.
+
+A execução é **idempotente** (segunda rodada remove zero), audita cada remoção
+(`analysis.purge`) e loga JSON estruturado: `purge.completed` com o total removido, ou
+`purge.failed` com o **tipo** da exceção (nunca a mensagem — pode ecoar conteúdo de e-mail).
+Falha propaga com exit ≠ 0 para o agendador poder alertar. **Não** há scheduler embutido no
+app web — evita purga duplicada em múltiplos workers e purga dentro de request.
 
 ## Variáveis de ambiente (backend, prefixo `HOOKSHADE_`)
 
