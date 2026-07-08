@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.deps import get_db
 from app.request_logging import configure_logging, install_request_logging
-from app.routers import analyses, audit, auth, rules
+from app.routers import analyses, audit, auth, rules, users
 from app.seed import init_db
 
 logger = logging.getLogger("hookshade")
@@ -45,6 +45,7 @@ app.include_router(auth.router)
 app.include_router(analyses.router)
 app.include_router(audit.router)
 app.include_router(rules.router)
+app.include_router(users.router)
 
 
 @app.get("/health")

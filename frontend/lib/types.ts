@@ -20,6 +20,11 @@ export interface AuditPage { items: AuditEntry[]; total: number; limit: number; 
 
 export interface CurrentUser { id: number; name: string; email: string; role: string; }
 
+export interface AdminUser {
+  id: number; name: string; email: string; role: string; status: string;
+  created_at: string; last_login_at: string | null;
+}
+
 export interface Rule {
   id: number;
   name: string;

@@ -1,6 +1,6 @@
 import { getToken } from "./auth";
 import type {
-  AnalysisDetail, AnalysisSummary, AuditPage,
+  AdminUser, AnalysisDetail, AnalysisSummary, AuditPage,
   CurrentUser, Rule, RuleChange, RuleInput, RuleTestResult,
 } from "./types";
 
@@ -84,3 +84,14 @@ export const deleteRule = (id: number, justification: string) =>
 export const testRule = (input: {
   analysis_id: number; category: string; severity: string; condition: Record<string, unknown>;
 }) => req<RuleTestResult>("/api/v1/rules/test", jsonBody("POST", input));
+
+// ---- Gestão de usuários (admin) ----
+export const listUsers = () => req<AdminUser[]>("/api/v1/users");
+export const createUser = (u: { name: string; email: string; password: string; role: string }) =>
+  req<AdminUser>("/api/v1/users", jsonBody("POST", u));
+export const changeUserRole = (id: number, role: string) =>
+  req<AdminUser>(`/api/v1/users/${id}/role`, jsonBody("PATCH", { role }));
+export const changeUserStatus = (id: number, status: string) =>
+  req<AdminUser>(`/api/v1/users/${id}/status`, jsonBody("PATCH", { status }));
+export const resetUserPassword = (id: number, password: string) =>
+  req<AdminUser>(`/api/v1/users/${id}/password`, jsonBody("PATCH", { password }));

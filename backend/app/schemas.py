@@ -1,6 +1,7 @@
 from datetime import datetime
+from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class LoginRequest(BaseModel):
@@ -18,6 +19,44 @@ class UserOut(BaseModel):
     name: str
     email: str
     role: str = "analyst"
+
+
+# ---- Gestão de usuários por admin (Fase 1 / Bloco 2) ----
+
+Role = Literal["admin", "analyst", "viewer"]
+_MIN_PASSWORD_LEN = 10
+
+
+class UserCreateIn(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    email: str = Field(min_length=3, max_length=255)
+    password: str = Field(min_length=_MIN_PASSWORD_LEN)
+    role: Role = "analyst"
+
+
+class UserRoleIn(BaseModel):
+    role: Role
+
+
+class UserStatusIn(BaseModel):
+    status: Literal["active", "inactive"]
+
+
+class UserPasswordIn(BaseModel):
+    password: str = Field(min_length=_MIN_PASSWORD_LEN)
+
+
+class UserAdminOut(BaseModel):
+    """Visão administrativa — NUNCA inclui password_hash."""
+    id: int
+    name: str
+    email: str
+    role: str
+    status: str
+    created_at: datetime
+    last_login_at: datetime | None = None
+
+    model_config = {"from_attributes": True}
 
 
 class AnalyzeTextRequest(BaseModel):
