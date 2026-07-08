@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import type { AnalysisDetail, Finding } from "@/lib/types";
+import { ScoreDial } from "@/components/ScoreDial";
 import { SeverityBadge } from "@/components/SeverityBadge";
 import { CopyButton } from "@/components/CopyButton";
 import { EvidenceBlock } from "@/components/EvidenceBlock";
@@ -50,19 +51,39 @@ function buildVerdict(a: AnalysisDetail): { intent: string; evidence: string; ac
   return { intent, evidence, action, note };
 }
 
-function VerdictBanner({ a }: { a: AnalysisDetail }) {
+/* Hero "veredito + ação" com ScoreDial (padrão visual portado do Hookshade Lab):
+   dial colorido pela severidade real ao lado da manchete. Conteúdo continua vindo
+   exclusivamente de buildVerdict — nada de evidência inventada. */
+function VerdictHero({ a }: { a: AnalysisDetail }) {
   const v = buildVerdict(a);
   return (
-    <section className="p-5 rounded-lg" style={{ background: "var(--panel)", borderLeft: "3px solid var(--accent)" }}>
-      <div className="text-[10px] uppercase tracking-widest mb-1" style={{ color: "var(--faint)" }}>veredito</div>
-      <p className="font-display text-lg leading-snug">{v.intent}</p>
-      <p className="text-sm mt-2" style={{ color: "var(--muted)" }}>
-        <span style={{ color: "var(--text)" }}>Principais evidências:</span> {v.evidence}.
-      </p>
-      <p className="text-sm mt-1" style={{ color: "var(--muted)" }}>
-        <span style={{ color: "var(--text)" }}>Ação recomendada:</span> {v.action}
-      </p>
-      <p className="text-[11px] mt-2" style={{ color: "var(--faint)" }}>{v.note}</p>
+    <section className="card-glow p-6 sm:p-8">
+      <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-center">
+        <div className="shrink-0">
+          <ScoreDial score={a.risk_score} severity={a.severity} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="font-display text-sm" style={{ color: "var(--muted)" }}>Análise #{a.id}</h1>
+            <SeverityBadge severity={a.severity} />
+            <span
+              className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full"
+              style={{ border: "1px solid var(--hair)", color: "var(--muted)", background: "var(--raise)" }}
+            >
+              confiança {CONF_PT[a.confidence] ?? a.confidence}
+            </span>
+          </div>
+          <p className="font-display text-2xl sm:text-3xl leading-tight mt-2">{v.intent}</p>
+          <p className="text-sm mt-2" style={{ color: "var(--muted)" }}>{a.summary}</p>
+          <p className="text-sm mt-3" style={{ color: "var(--muted)" }}>
+            <span style={{ color: "var(--text)" }}>Principais evidências:</span> {v.evidence}.
+          </p>
+          <p className="text-sm mt-1" style={{ color: "var(--muted)" }}>
+            <span style={{ color: "var(--text)" }}>Ação recomendada:</span> {v.action}
+          </p>
+          <p className="text-[11px] mt-3" style={{ color: "var(--faint)" }}>{v.note}</p>
+        </div>
+      </div>
     </section>
   );
 }
@@ -142,42 +163,27 @@ export function ResultView({ a }: { a: AnalysisDetail }) {
 
   return (
     <main className="max-w-4xl mx-auto p-6 space-y-4">
-      {/* Veredito: o quê + evidência + ação, em linguagem direta (Krug) */}
-      <VerdictBanner a={a} />
+      {/* Veredito: dial + o quê + evidência + ação, em linguagem direta (Krug) */}
+      <VerdictHero a={a} />
 
-      {/* Resumo executivo */}
-      <section className="p-5 rounded-lg" style={{ background: "var(--panel)" }}>
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-3">
-            <h1 className="font-display text-2xl">Análise #{a.id}</h1>
-            <SeverityBadge severity={a.severity} />
-            <span className="text-xs text-slate-500">confiança: {a.confidence}</span>
-          </div>
-          {/* Score rebaixado a índice advisory */}
-          <div className="text-right">
-            <div className="text-[10px] uppercase tracking-wide text-slate-500">índice heurístico · advisory</div>
-            <div className="leading-none">
-              <span className="text-2xl font-bold" style={{ color: "var(--accent)" }}>{a.risk_score}</span>
-              <span className="text-sm text-slate-500">/100</span>
+      {/* Avisos prioritários (mascaramento / regras editáveis) */}
+      {(mismatches > 0 || firedRules.length > 0) && (
+        <section className="p-4 rounded-lg space-y-3" style={{ background: "var(--panel)" }}>
+          {mismatches > 0 && (
+            <div className="text-xs px-3 py-2 rounded flex items-center gap-2"
+              style={{ background: "rgba(124,92,255,0.12)", color: "var(--accent)" }}>
+              ⚠ {mismatches} link com URL exibida diferente da real (mascaramento) — priorize a investigação.
             </div>
-            <div className="text-[10px] text-slate-500">não é veredito definitivo</div>
-          </div>
-        </div>
-        <p className="text-slate-300 text-sm mt-3">{a.summary}</p>
-        {mismatches > 0 && (
-          <div className="mt-3 text-xs px-3 py-2 rounded flex items-center gap-2"
-            style={{ background: "rgba(124,92,255,0.12)", color: "var(--accent)" }}>
-            ⚠ {mismatches} link com URL exibida diferente da real (mascaramento) — priorize a investigação.
-          </div>
-        )}
-        {firedRules.length > 0 && (
-          <div className="mt-3 text-xs px-3 py-2 rounded"
-            style={{ background: "rgba(124,92,255,0.10)", color: "var(--accent)" }}>
-            {firedRules.length} regra(s) editável(is) dispararam e somaram +{rulesImpact} ao índice.
-            Cada disparo aparece abaixo com evidência e link para a regra — nenhuma decisão de risco sem rastro.
-          </div>
-        )}
-      </section>
+          )}
+          {firedRules.length > 0 && (
+            <div className="text-xs px-3 py-2 rounded"
+              style={{ background: "rgba(124,92,255,0.10)", color: "var(--accent)" }}>
+              {firedRules.length} regra(s) editável(is) dispararam e somaram +{rulesImpact} ao índice.
+              Cada disparo aparece abaixo com evidência e link para a regra — nenhuma decisão de risco sem rastro.
+            </div>
+          )}
+        </section>
+      )}
 
       {/* Findings + evidências */}
       <Card title="Achados e evidências" right={<span className="text-xs text-slate-500">{findings.length} findings · mais graves primeiro</span>}>

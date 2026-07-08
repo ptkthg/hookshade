@@ -18,6 +18,12 @@
   --radius: 16px;
   --radius-sm: 10px;
   --depth: inset 0 1px 0 #ffffff10, 0 2px 4px #00000066, 0 30px 60px -18px #000000cc;
+
+  /* Severidades (mesma paleta do SeverityBadge — dial e badge sempre iguais) */
+  --sev-baixo: #34d399;
+  --sev-medio: #fbbf24;
+  --sev-alto: #fb923c;
+  --sev-critico: #f87171;
 }
 
 /* next/font expõe --font-display / --font-sans / --font-mono no <html> (via layout). */
@@ -42,6 +48,17 @@ main { width: 100%; min-width: 0; }
   border: 1px solid var(--hair-faint);
   border-radius: var(--radius);
   box-shadow: var(--depth);
+}
+
+/* Card de destaque com halo violeta (portado do lab visual Hookshade Lab).
+   Uso: hero do resultado — um por tela, para não diluir a hierarquia. */
+.card-glow {
+  background:
+    radial-gradient(ellipse at top, #9b8cff1a, transparent 60%),
+    linear-gradient(180deg, var(--panel-top), var(--panel));
+  border: 1px solid var(--hair);
+  border-radius: var(--radius);
+  box-shadow: 0 0 0 1px #9b8cff2e, 0 20px 60px -20px #9b8cff40;
 }
 
 .hairline { border-color: var(--hair); }
