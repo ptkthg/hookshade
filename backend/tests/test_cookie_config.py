@@ -15,6 +15,7 @@ def _prod(**over) -> Settings:
         cors_origins="https://hookshade.app",
         cookie_secure=True,
         cookie_samesite="lax",
+        hsts_enabled=True,
     )
     base.update(over)
     return Settings(**base)
@@ -45,6 +46,18 @@ def test_production_rejects_cors_wildcard():
     # CORS wildcard + credenciais é combinação proibida
     with pytest.raises(RuntimeError, match="CORS"):
         _prod(cors_origins="*").validate_for_production()
+
+
+def test_production_requires_hsts():
+    """Sem HSTS, um MITM rebaixa a conexão para http na primeira visita e o cookie
+    Secure simplesmente não é enviado — a sessão vira texto claro."""
+    with pytest.raises(RuntimeError, match="HSTS"):
+        _prod(hsts_enabled=False).validate_for_production()
+
+
+def test_production_rejects_short_hsts_max_age():
+    with pytest.raises(RuntimeError, match="HSTS"):
+        _prod(hsts_max_age=3600).validate_for_production()
 
 
 def test_development_allows_insecure_cookie():

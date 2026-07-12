@@ -8,7 +8,8 @@ def _settings(**kw) -> Settings:
     base = dict(environment="production",
                 secret_key="x" * 40, encryption_key="y" * 40,
                 seed_password="trocada-forte-123", cors_origins="https://app.exemplo.com",
-                cookie_secure=True)  # produção exige cookie de sessão sob HTTPS
+                cookie_secure=True,   # produção exige cookie de sessão sob HTTPS...
+                hsts_enabled=True)    # ...e HSTS, senão o Secure nem chega a ser enviado
     base.update(kw)
     return Settings(**base)
 

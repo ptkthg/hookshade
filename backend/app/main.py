@@ -12,6 +12,7 @@ from app.csrf import verify_csrf_token
 from app.deps import get_db
 from app.request_logging import configure_logging, install_request_logging
 from app.routers import analyses, audit, auth, rules, users
+from app.security_headers import SecurityHeadersMiddleware
 from app.seed import init_db
 
 # Métodos que mudam estado exigem prova de mesma-origem (double-submit).
@@ -50,6 +51,12 @@ async def csrf_guard(request, call_next):
             return JSONResponse(status_code=403, content={"detail": "CSRF validation failed"})
     return await call_next(request)
 
+
+# Registrado por ÚLTIMO de propósito: no Starlette o último middleware adicionado é o
+# mais EXTERNO. Só assim os headers envolvem todas as respostas, inclusive o 403 que o
+# csrf_guard acima devolve sem nunca chegar na rota — que é justamente a resposta que um
+# atacante mais vê.
+app.add_middleware(SecurityHeadersMiddleware)
 
 app.add_middleware(
     CORSMiddleware,

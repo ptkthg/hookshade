@@ -31,6 +31,13 @@ class Settings(BaseSettings):
     cookie_samesite: str = "lax"  # lax | strict. "none" é recusado em produção.
     csrf_header_name: str = "X-CSRF-Token"
 
+    # --- Headers de segurança ---
+    # HSTS fica DESLIGADO em dev de propósito: sob http://localhost o navegador
+    # gravaria "só https neste host" por meses e travaria o ambiente local.
+    # Em produção o gate exige que esteja ligado.
+    hsts_enabled: bool = False
+    hsts_max_age: int = 31_536_000  # 1 ano
+
     @property
     def session_cookie_name(self) -> str:
         # O prefixo __Host- é a trava mais forte que o browser oferece: só aceita o
@@ -73,6 +80,14 @@ class Settings(BaseSettings):
             problems.append("HOOKSHADE_CORS_ORIGINS deve listar origens específicas (sem curinga '*').")
         if not self.cookie_secure:
             problems.append("HOOKSHADE_COOKIE_SECURE deve ser true em produção (cookie de sessão só sob HTTPS).")
+        if not self.hsts_enabled:
+            problems.append(
+                "HOOKSHADE_HSTS_ENABLED deve ser true em produção. Sem HSTS, um MITM "
+                "rebaixa a conexão para http na primeira visita e o cookie Secure nem é "
+                "enviado — a sessão trafega em claro."
+            )
+        elif self.hsts_max_age < 31_536_000:
+            problems.append("HOOKSHADE_HSTS_MAX_AGE deve ser >= 31536000 (1 ano) em produção.")
         if self.cookie_samesite.strip().lower() not in ("lax", "strict"):
             problems.append(
                 "HOOKSHADE_COOKIE_SAMESITE deve ser 'lax' ou 'strict'. "
