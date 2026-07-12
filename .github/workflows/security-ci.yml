@@ -17,6 +17,11 @@ jobs:
     name: secrets scanning
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # Em evento de pull_request o gitleaks lista os commits do PR pela API do GitHub.
+    # Só com `contents: read` isso dá 403 e o job falha — sem que exista segredo nenhum.
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - uses: actions/checkout@v4
         with:
@@ -28,6 +33,9 @@ jobs:
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Sem comentar no PR: exigiria permissão de escrita, e o resultado já aparece
+          # no próprio check. Menos privilégio, mesma informação.
+          GITLEAKS_ENABLE_COMMENTS: "false"
 
   code:
     name: SAST (python)
