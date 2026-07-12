@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { analyzeFile, analyzeText } from "@/lib/api";
-import { Nav } from "@/components/Nav";
+import { AppShell } from "@/components/AppShell";
 
 export default function NovaAnalisePage() {
   const router = useRouter();
@@ -29,8 +29,7 @@ export default function NovaAnalisePage() {
   }
 
   return (
-    <>
-      <Nav />
+    <AppShell>
       <main className="max-w-2xl mx-auto p-8 space-y-5">
         <h1 className="font-display text-2xl">Nova Análise</h1>
         <form onSubmit={onSubmit} className="space-y-4">
@@ -68,6 +67,6 @@ export default function NovaAnalisePage() {
           </button>
         </form>
       </main>
-    </>
+    </AppShell>
   );
 }

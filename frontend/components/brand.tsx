@@ -45,6 +45,11 @@ export const Icons = {
   score: (p: IconProps) => svg(<><path d="M4 15a8 8 0 0 1 16 0" /><path d="m12 15 4-4" /><circle cx="12" cy="15" r="1" /></>, p),
   action: (p: IconProps) => svg(<><path d="M4 6h11M4 12h7M4 18h11" /><path d="m16 15 3 3 3-5" /></>, p),
   history: (p: IconProps) => svg(<><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5M12 8v4l3 2" /></>, p),
+  scan: (p: IconProps) => svg(<><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2" /><circle cx="12" cy="12" r="3.5" /><path d="m15 15 2.5 2.5" /></>, p),
+  shield: (p: IconProps) => svg(<><path d="M12 3 5 6v5c0 4.4 3 8.1 7 9.5 4-1.4 7-5.1 7-9.5V6l-7-3Z" /><path d="m9 12 2 2 4-4" /></>, p),
+  audit: (p: IconProps) => svg(<><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5Z" /><path d="M14 3v5h5M9 13h6M9 17h4" /></>, p),
+  users: (p: IconProps) => svg(<><circle cx="9" cy="8" r="3.5" /><path d="M3.5 20a5.5 5.5 0 0 1 11 0" /><path d="M16 5a3.5 3.5 0 0 1 0 7M17 15.5a5.5 5.5 0 0 1 3.5 4.5" /></>, p),
+  logout: (p: IconProps) => svg(<><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="m16 17 5-5-5-5M21 12H9" /></>, p),
 } as const;
 
 export type IconName = keyof typeof Icons;

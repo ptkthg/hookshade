@@ -6,7 +6,7 @@ import {
 } from "@/lib/api";
 import type { Rule, RuleChange, RuleInput } from "@/lib/types";
 import { SeverityBadge } from "@/components/SeverityBadge";
-import { Nav } from "@/components/Nav";
+import { AppShell } from "@/components/AppShell";
 import { RuleForm } from "@/components/RuleForm";
 import { RuleTester } from "@/components/RuleTester";
 
@@ -59,13 +59,12 @@ export default function RegraDetalhePage({ params }: { params: Promise<{ id: str
 
   if (!rule) {
     return (
-      <>
-        <Nav />
+      <AppShell>
         <main className="max-w-4xl mx-auto p-6">
           {error ? <p className="text-sm text-[#f87171]">{error}</p> : <p className="text-[var(--muted)]">Carregando…</p>}
           <Link href="/regras" className="text-[var(--accent)] text-sm">← voltar</Link>
         </main>
-      </>
+      </AppShell>
     );
   }
 
@@ -74,8 +73,7 @@ export default function RegraDetalhePage({ params }: { params: Promise<{ id: str
   const key = "text-[var(--muted)] w-32 shrink-0";
 
   return (
-    <>
-      <Nav />
+    <AppShell>
       <main className="max-w-4xl mx-auto p-6 space-y-6">
         <div className="flex items-center gap-3">
           <Link href="/regras" className="text-[var(--accent)] text-sm">← regras</Link>
@@ -162,6 +160,6 @@ export default function RegraDetalhePage({ params }: { params: Promise<{ id: str
           </div>
         </div>
       </main>
-    </>
+    </AppShell>
   );
 }

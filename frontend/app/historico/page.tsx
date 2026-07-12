@@ -4,7 +4,7 @@ import Link from "next/link";
 import { listAnalyses } from "@/lib/api";
 import type { AnalysisSummary } from "@/lib/types";
 import { SeverityBadge } from "@/components/SeverityBadge";
-import { Nav } from "@/components/Nav";
+import { AppShell } from "@/components/AppShell";
 
 export default function HistoricoPage() {
   const [rows, setRows] = useState<AnalysisSummary[]>([]);
@@ -15,8 +15,7 @@ export default function HistoricoPage() {
   }, []);
 
   return (
-    <>
-      <Nav />
+    <AppShell>
       <main className="max-w-4xl mx-auto p-8 space-y-5">
         <h1 className="font-display text-2xl">Histórico</h1>
         {error && <p className="text-sm" style={{ color: "#e8776b" }}>{error}</p>}
@@ -45,6 +44,6 @@ export default function HistoricoPage() {
           </table>
         </div>
       </main>
-    </>
+    </AppShell>
   );
 }

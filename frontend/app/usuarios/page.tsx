@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
-import { Nav } from "@/components/Nav";
+import { AppShell } from "@/components/AppShell";
 import {
   changeUserRole, changeUserStatus, createUser, getMe, listUsers, resetUserPassword,
 } from "@/lib/api";
@@ -29,15 +29,14 @@ export default function UsuariosPage() {
       .catch(() => {});
   }, [refresh]);
 
-  if (!me) return <><Nav /><main className="max-w-5xl mx-auto p-6" /></>;
+  if (!me) return <AppShell><main className="max-w-5xl mx-auto p-6" /></AppShell>;
   if (me.role !== "admin") {
     return (
-      <>
-        <Nav />
+      <AppShell>
         <main className="max-w-5xl mx-auto p-6">
           <p className="text-sm text-[var(--muted)]">Esta área exige perfil administrador.</p>
         </main>
-      </>
+      </AppShell>
     );
   }
 
@@ -61,8 +60,7 @@ export default function UsuariosPage() {
   };
 
   return (
-    <>
-      <Nav />
+    <AppShell>
       <main className="max-w-5xl mx-auto p-6 space-y-6">
         <div className="flex items-center gap-3">
           <h1 className="font-display text-2xl">Usuários</h1>
@@ -147,6 +145,6 @@ export default function UsuariosPage() {
           </table>
         </div>
       </main>
-    </>
+    </AppShell>
   );
 }

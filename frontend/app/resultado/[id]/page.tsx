@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import { getAnalysis } from "@/lib/api";
 import type { AnalysisDetail } from "@/lib/types";
 import { ResultView } from "@/components/ResultView";
-import { Nav } from "@/components/Nav";
+import { AppShell } from "@/components/AppShell";
 
 export default function ResultadoPage() {
   const { id } = useParams<{ id: string }>();
@@ -19,8 +19,7 @@ export default function ResultadoPage() {
   // Mensagem genérica e discreta: não revela se a análise existe ou se é de outro
   // usuário (mesma resposta para 404 e acesso negado). Nenhum dado parcial é exibido.
   if (failed) return (
-    <>
-      <Nav />
+    <AppShell>
       <main className="max-w-2xl mx-auto p-8 space-y-3">
         <h1 className="font-display text-xl">Análise indisponível</h1>
         <p className="text-sm" style={{ color: "var(--muted)" }}>
@@ -28,9 +27,9 @@ export default function ResultadoPage() {
         </p>
         <Link href="/historico" className="text-sm" style={{ color: "var(--accent)" }}>← voltar ao histórico</Link>
       </main>
-    </>
+    </AppShell>
   );
-  if (!a) return (<><Nav /><main className="p-8" style={{ color: "var(--muted)" }}>Carregando…</main></>);
+  if (!a) return (<AppShell><main className="p-8" style={{ color: "var(--muted)" }}>Carregando…</main></AppShell>);
 
-  return (<><Nav /><ResultView a={a} /></>);
+  return (<AppShell><ResultView a={a} /></AppShell>);
 }

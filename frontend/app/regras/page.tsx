@@ -4,7 +4,7 @@ import Link from "next/link";
 import { getMe, listRules } from "@/lib/api";
 import type { Rule } from "@/lib/types";
 import { SeverityBadge } from "@/components/SeverityBadge";
-import { Nav } from "@/components/Nav";
+import { AppShell } from "@/components/AppShell";
 
 const CATEGORIES = ["", "auth", "url", "content", "attachment", "structural"];
 const SEVERITIES = ["", "baixo", "médio", "alto", "crítico"];
@@ -48,8 +48,7 @@ export default function RegrasPage() {
   const sel = "rounded bg-[var(--panel)] border border-white/10 px-2 py-1.5 text-sm outline-none";
 
   return (
-    <>
-      <Nav />
+    <AppShell>
       <main className="max-w-5xl mx-auto p-6 space-y-4">
         <div className="flex items-center gap-3">
           <h1 className="font-display text-2xl">Regras de detecção</h1>
@@ -108,6 +107,6 @@ export default function RegrasPage() {
           </table>
         </div>
       </main>
-    </>
+    </AppShell>
   );
 }

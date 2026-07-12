@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createRule, getMe } from "@/lib/api";
 import type { RuleInput } from "@/lib/types";
-import { Nav } from "@/components/Nav";
+import { AppShell } from "@/components/AppShell";
 import { RuleForm } from "@/components/RuleForm";
 
 export default function NovaRegraPage() {
@@ -20,8 +20,7 @@ export default function NovaRegraPage() {
   }
 
   return (
-    <>
-      <Nav />
+    <AppShell>
       <main className="max-w-3xl mx-auto p-6 space-y-4">
         <h1 className="font-display text-2xl">Nova regra</h1>
         {allowed === false && (
@@ -38,6 +37,6 @@ export default function NovaRegraPage() {
           </>
         )}
       </main>
-    </>
+    </AppShell>
   );
 }

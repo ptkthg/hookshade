@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { listAudit } from "@/lib/api";
 import type { AuditPage } from "@/lib/types";
 import { AuditTable } from "@/components/AuditTable";
-import { Nav } from "@/components/Nav";
+import { AppShell } from "@/components/AppShell";
 
 const LIMIT = 50;
 const FILTERS = [
@@ -38,8 +38,7 @@ export default function AuditoriaPage() {
   const to = offset + shown;
 
   return (
-    <>
-      <Nav />
+    <AppShell>
       <main className="max-w-5xl mx-auto p-6 space-y-4">
         <div className="flex items-center gap-3 flex-wrap">
           <h1 className="font-display text-2xl">Auditoria</h1>
@@ -89,6 +88,6 @@ export default function AuditoriaPage() {
           </>
         )}
       </main>
-    </>
+    </AppShell>
   );
 }
