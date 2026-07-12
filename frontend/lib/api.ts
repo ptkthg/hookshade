@@ -1,30 +1,59 @@
-import { getToken } from "./auth";
+import { clearCsrfToken, getCsrfToken, setCsrfToken } from "./auth";
 import type {
   AdminUser, AnalysisDetail, AnalysisSummary, AuditPage,
   CurrentUser, Rule, RuleChange, RuleInput, RuleTestResult,
 } from "./types";
 
-const BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
+/* Rotas RELATIVAS: o browser fala só com a nossa origem (/api/*), que faz proxy
+ * para o backend. Sem URL de backend no bundle, e o cookie de sessão é same-origin. */
+
+const MUTATING = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
+/** Busca o token CSRF (uma vez) e o guarda em memória. */
+async function ensureCsrf(): Promise<string> {
+  const cached = getCsrfToken();
+  if (cached) return cached;
+  const res = await fetch("/api/v1/auth/csrf", { credentials: "include" });
+  if (!res.ok) throw new Error("Não foi possível iniciar a sessão");
+  const { csrf_token } = (await res.json()) as { csrf_token: string };
+  setCsrfToken(csrf_token);
+  return csrf_token;
+}
 
 async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const token = getToken();
+  const method = (init.method ?? "GET").toUpperCase();
   const headers: Record<string, string> = { ...(init.headers as Record<string, string>) };
-  if (token) headers["Authorization"] = `Bearer ${token}`;
-  const res = await fetch(`${BASE}${path}`, { ...init, headers });
+
+  // Só métodos mutáveis carregam CSRF — GET não precisa e buscar token em toda
+  // leitura seria um round-trip a mais por request.
+  if (MUTATING.has(method)) headers["X-CSRF-Token"] = await ensureCsrf();
+
+  const res = await fetch(path, {
+    ...init,
+    headers,
+    credentials: "include", // manda o cookie httpOnly; é ele que autentica agora
+  });
+
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error(body.detail || res.statusText);
   }
+  if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
 }
 
-export async function login(email: string, password: string): Promise<string> {
-  const data = await req<{ access_token: string }>("/api/v1/auth/login", {
+/** Autentica. O JWT não volta no corpo: ele fica no cookie httpOnly. */
+export const login = (email: string, password: string) =>
+  req<CurrentUser>("/api/v1/auth/login", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password }),
   });
-  return data.access_token;
+
+/** Encerra a sessão no servidor (o JS não tem como apagar o cookie httpOnly). */
+export async function logout(): Promise<void> {
+  await req<void>("/api/v1/auth/logout", { method: "POST" });
+  clearCsrfToken();
 }
 
 export const listAnalyses = () => req<AnalysisSummary[]>("/api/v1/analyses");

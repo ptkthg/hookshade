@@ -3,7 +3,6 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { login } from "@/lib/api";
-import { setToken } from "@/lib/auth";
 import { Wordmark } from "@/components/brand";
 
 export default function LoginPage() {
@@ -18,8 +17,9 @@ export default function LoginPage() {
     setError("");
     setBusy(true);
     try {
-      const token = await login(email, password);
-      setToken(token);
+      // Nada a guardar: o backend responde com Set-Cookie httpOnly e o browser
+      // passa a mandar a sessão sozinho.
+      await login(email, password);
       router.push("/nova-analise");
     } catch (err) {
       setError((err as Error).message || "Falha no login");

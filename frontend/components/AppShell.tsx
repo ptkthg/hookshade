@@ -2,8 +2,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { getMe } from "@/lib/api";
-import { clearToken, getToken } from "@/lib/auth";
+import { getMe, logout as apiLogout } from "@/lib/api";
 import { Icons, Wordmark, type IconName } from "@/components/brand";
 
 /* Casca da área autenticada: sidebar fixa no desktop + topbar (visual portado do
@@ -27,22 +26,37 @@ export function AppShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [me, setMe] = useState<{ email: string; role: string } | null>(null);
+  const [checking, setChecking] = useState(true);
 
+  // O cookie de sessão é httpOnly: o JS não consegue lê-lo para saber se há sessão.
+  // A fonte de verdade passa a ser o servidor — /auth/me responde 401 sem sessão.
+  // (Guarda de UX: quem barra de verdade é o backend.)
   useEffect(() => {
-    if (!getToken()) router.replace("/login");
+    let alive = true;
+    getMe()
+      .then((u) => { if (alive) { setMe({ email: u.email, role: u.role }); setChecking(false); } })
+      .catch(() => { if (alive) router.replace("/login"); });
+    return () => { alive = false; };
   }, [router]);
-
-  useEffect(() => {
-    getMe().then((u) => setMe({ email: u.email, role: u.role })).catch(() => {});
-  }, []);
 
   const isAdmin = me?.role === "admin";
   const links = NAV.filter((l) => !l.adminOnly || isAdmin);
 
-  const logout = () => {
-    clearToken();
-    router.push("/login");
+  const logout = async () => {
+    // O JS não apaga um cookie httpOnly: só o servidor pode. Se a chamada falhar,
+    // manda para o login mesmo assim — não queremos prender ninguém numa sessão.
+    try { await apiLogout(); } finally { router.replace("/login"); }
   };
+
+  // Enquanto a sessão não é confirmada, não renderiza a casca autenticada: evita o
+  // flash de conteúdo de quem talvez nem esteja logado.
+  if (checking) {
+    return (
+      <div className="flex min-h-screen items-center justify-center" style={{ color: "var(--faint)" }}>
+        <span className="text-sm">Carregando…</span>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen w-full">
