@@ -107,7 +107,7 @@ export default function RegraDetalhePage({ params }: { params: Promise<{ id: str
 
         {isAdmin && !editing && (
           <div className="rounded-lg border border-white/10 p-4 space-y-3">
-            <h2 className="text-sm font-semibold">Ações (exigem justificativa — auditadas)</h2>
+            <h2 className="text-sm font-semibold">Ações (exigem justificativa e são auditadas)</h2>
             <input
               className="w-full rounded bg-[var(--panel)] border border-white/10 px-3 py-2 text-sm outline-none"
               placeholder="Justificativa desta ação"

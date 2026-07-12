@@ -7,7 +7,7 @@ const sans = Inter({ subsets: ["latin"], variable: "--font-sans", display: "swap
 const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono", display: "swap" });
 
 export const metadata: Metadata = {
-  title: "Hookshade — triagem de phishing explicável",
+  title: "Hookshade | triagem de phishing explicável",
   description: "Plataforma defensiva de análise de phishing para SOC/Blue Team. Veredito auditável, sem caixa-preta.",
 };
 

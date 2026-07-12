@@ -64,7 +64,7 @@ export default function Landing() {
             Todo e-mail suspeito,<br />com um <span style={{ color: "var(--accent)", fontWeight: 400 }}>veredito que se explica</span>.
           </h1>
           <p className="mt-8 max-w-[46ch] font-light leading-relaxed" style={{ color: "var(--muted)", fontSize: T.bodyL }}>
-            Cole um e-mail bruto e receba indicadores, autenticação do remetente e um índice auditável —
+            Cole um e-mail bruto e receba indicadores, autenticação do remetente e um índice auditável,
             ponto a ponto, sem caixa-preta.
           </p>
           <div className="mt-11 flex items-center gap-8">
@@ -87,7 +87,7 @@ export default function Landing() {
         <div className="max-w-5xl mx-auto px-8 py-28">
           <Eyebrow>a plataforma</Eyebrow>
           <p className="mt-10 max-w-4xl leading-[1.35] tracking-tight" style={{ fontFamily: DISPLAY, fontWeight: 300, fontSize: T.h2 }}>
-            <span style={{ color: "var(--muted)" }}>Reproduzimos o raciocínio de um investigador —</span> separando cabeçalhos,
+            <span style={{ color: "var(--muted)" }}>Reproduzimos o raciocínio de um investigador:</span> separando cabeçalhos,
             isolando indicadores e verificando a autenticação <span style={{ color: "var(--muted)" }}>para entregar</span> um
             veredito <span style={{ color: "var(--accent)", fontWeight: 400 }}>sem caixa-preta</span>.
           </p>
@@ -268,7 +268,7 @@ export default function Landing() {
           </div>
         </div>
         <div className="border-t px-8 py-6 text-center text-xs font-light" style={{ borderColor: "var(--hair-faint)", fontFamily: MONO }}>
-          © 2026 Hookshade — portfólio de segurança da informação
+          © 2026 Hookshade · portfólio de segurança da informação
         </div>
       </footer>
     </div>

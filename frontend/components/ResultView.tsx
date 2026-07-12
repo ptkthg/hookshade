@@ -47,7 +47,7 @@ function buildVerdict(a: AnalysisDetail): { intent: string; evidence: string; ac
   else intent = "Sinais suspeitos a investigar";
   const evidence = ordered.slice(0, 2).map((f) => f.title).join("; ") || "sem achados relevantes";
   const action = a.recommendations[0]?.description || "Manter monitoramento padrão.";
-  const note = `Confiança ${CONF_PT[a.confidence] ?? a.confidence} · índice advisory (não é veredito definitivo); autenticação lida do header, não revalidada por DNS.`;
+  const note = `Confiança ${CONF_PT[a.confidence] ?? a.confidence}. Índice advisory, sem valor de veredito definitivo. Autenticação lida do header, sem revalidação por DNS.`;
   return { intent, evidence, action, note };
 }
 
@@ -172,14 +172,14 @@ export function ResultView({ a }: { a: AnalysisDetail }) {
           {mismatches > 0 && (
             <div className="text-xs px-3 py-2 rounded flex items-center gap-2"
               style={{ background: "rgba(124,92,255,0.12)", color: "var(--accent)" }}>
-              ⚠ {mismatches} link com URL exibida diferente da real (mascaramento) — priorize a investigação.
+              ⚠ {mismatches} link com URL exibida diferente da real (mascaramento). Priorize a investigação.
             </div>
           )}
           {firedRules.length > 0 && (
             <div className="text-xs px-3 py-2 rounded"
               style={{ background: "rgba(124,92,255,0.10)", color: "var(--accent)" }}>
               {firedRules.length} regra(s) editável(is) dispararam e somaram +{rulesImpact} ao índice.
-              Cada disparo aparece abaixo com evidência e link para a regra — nenhuma decisão de risco sem rastro.
+              Cada disparo aparece abaixo com evidência e link para a regra. Nenhuma decisão de risco fica sem rastro.
             </div>
           )}
         </section>

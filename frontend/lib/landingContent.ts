@@ -4,16 +4,16 @@ import type { IconName } from "@/components/brand";
 
 export const FEATURES: { icon: IconName; title: string; desc: string }[] = [
   { icon: "headers", title: "Parsing de cabeçalhos", desc: "Extrai remetente, rota Received e Authentication-Results de qualquer .eml ou texto colado." },
-  { icon: "ioc", title: "Extração de IOCs", desc: "URLs, domínios, e-mails e hashes de anexos — sempre defanged para manipulação segura." },
+  { icon: "ioc", title: "Extração de IOCs", desc: "URLs, domínios, e-mails e hashes de anexos, sempre defanged para manipulação segura." },
   { icon: "auth", title: "Autenticação de e-mail", desc: "Leitura de SPF, DKIM e DMARC com o peso de cada falha refletido no veredito." },
   { icon: "score", title: "Índice explicável", desc: "Índice heurístico advisory e auditável, com a evidência por trás de cada ponto atribuído." },
-  { icon: "action", title: "Motor de regras editável", desc: "O analista escreve regras declarativas de detecção — versionadas, auditadas, sem executar código." },
+  { icon: "action", title: "Motor de regras editável", desc: "O analista escreve regras declarativas de detecção: versionadas, auditadas e sem executar código." },
   { icon: "history", title: "Histórico e auditoria", desc: "Cada análise e cada mudança de regra ficam registradas e prontas para consulta." },
 ];
 
 export const BENEFITS = [
   { k: "Triagem em segundos", v: "Um veredito consistente para a fila de e-mails reportados, sem análise manual repetitiva." },
-  { k: "Veredito auditável", v: "Cada ponto do índice tem origem rastreável — nada de caixa-preta na decisão." },
+  { k: "Veredito auditável", v: "Cada ponto do índice tem origem rastreável, sem caixa-preta na decisão." },
   { k: "Seguro por padrão", v: "Anexos nunca são executados (só hash e metadados); URLs sempre exibidas defanged." },
   { k: "Feito para analistas", v: "Linguagem de SOC do L1 ao threat hunter, com IOCs prontos para pivotar." },
 ];
@@ -33,7 +33,7 @@ export const USE_CASES = [
 ];
 
 export const DIFERENCIAIS = [
-  { t: "Explicável por padrão", d: "Cada ponto do índice aponta a evidência que o gerou — nada de veredito opaco." },
+  { t: "Explicável por padrão", d: "Cada ponto do índice aponta a evidência que o gerou. Nenhum veredito opaco." },
   { t: "Determinístico e auditável", d: "O mesmo e-mail sempre gera o mesmo resultado: reproduzível e defensável." },
   { t: "Privado por construção", d: "Heurísticas locais; o e-mail não é enviado a serviços de terceiros." },
   { t: "Defensivo, sem exceção", d: "Anexos nunca executados, URLs sempre defanged. Zero superfície ofensiva." },

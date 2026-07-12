@@ -64,7 +64,7 @@ export default function UsuariosPage() {
       <main className="max-w-5xl mx-auto p-6 space-y-6">
         <div className="flex items-center gap-3">
           <h1 className="font-display text-2xl">Usuários</h1>
-          <span className="text-xs text-[var(--muted)]">administração mínima — toda mutação é auditada</span>
+          <span className="text-xs text-[var(--muted)]">administração mínima: toda mutação é auditada</span>
         </div>
 
         {error && <p className="text-sm text-[#f87171]">{error}</p>}
