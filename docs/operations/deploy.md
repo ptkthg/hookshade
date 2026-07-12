@@ -1,5 +1,18 @@
 # Deploy — Vercel + Render + Neon
 
+> **AMBIENTE NO AR desde 2026-07-12.**
+>
+> | | URL |
+> |---|---|
+> | Frontend (público) | **https://hookshade.vercel.app** |
+> | API | https://hookshade-api.onrender.com |
+> | Banco | Neon (Postgres, free) |
+>
+> Smoke pós-deploy: **37/37 PASS**. Segurança verificada em produção: cookie `__Host-` +
+> `Secure` + `HttpOnly`, CSP com nonce sem `unsafe-inline`/`unsafe-eval`, CSRF barrando
+> POST forjado (403), RBAC, anti-IDOR (404), upload `.eml` pelo proxy, e o navegador nunca
+> falando direto com a API.
+
 Arquitetura escolhida depois que o Railway passou a exigir cartão para criar serviços.
 Este caminho é **gratuito de verdade**: nenhuma das três plataformas pede cartão para o
 que usamos aqui.

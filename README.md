@@ -1,5 +1,18 @@
 # Hookshade
 
+### 🔗 No ar: **https://hookshade.vercel.app**
+
+Frontend na Vercel · API no Render · Postgres no Neon. Deploy verificado por smoke
+automatizado (37/37) contra o ambiente real — ver [`docs/operations/deploy.md`](docs/operations/deploy.md).
+
+> **Limitações honestas deste ambiente:** o backend roda em free tier e **dorme após 15 min**
+> de inatividade (o primeiro acesso pode levar ~50s). A purga de retenção ainda **não é
+> agendada** e não há monitoramento nem backup automático (Fase 3). O logout apaga o cookie
+> mas **não revoga** o JWT. **Não submeta e-mail corporativo real de terceiros**: a base legal
+> e o DPA ainda não existem (Fase 7).
+
+---
+
 Plataforma web **defensiva** de triagem de phishing para SOC/Blue Team: submeter um `.eml`/texto →
 parser → extração de IOCs → autenticação de e-mail (SPF/DKIM/DMARC lidos do header) → detecção de
 URL mascarada → **índice de risco explicável** → tela de resultado com evidências. Inclui
