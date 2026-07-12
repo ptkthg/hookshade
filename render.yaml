@@ -1,0 +1,65 @@
+# Blueprint do backend no Render.
+#
+# Nenhum segredo aqui. Tudo que é sensível tem `sync: false`, o que faz o Render PEDIR o
+# valor na criação e guardá-lo só no painel — nunca no Git.
+#
+# O banco NÃO é do Render: usamos Neon (Postgres gerenciado, tier gratuito que não expira).
+# O frontend NÃO é do Render: é Vercel.
+
+services:
+  - type: web
+    name: hookshade-api
+    runtime: python
+    plan: free
+    rootDir: backend
+    region: oregon
+
+    buildCommand: pip install -r requirements.txt
+
+    # `alembic upgrade head &&` antes do uvicorn: se a migração falhar, o processo NÃO
+    # sobe e o deploy anterior continua servindo. Falha segura por construção.
+    #
+    # --no-server-header: não anunciar "uvicorn" (reconhecimento de graça para quem sonda).
+    # --proxy-headers: enxergar o IP real do cliente atrás do proxy do Render (o rate limit
+    #   e o log estruturado dependem disso).
+    # --workers 1: o rate limit é em memória por processo; com vários workers cada um teria
+    #   a própria contagem. Redis entra na Fase 6.
+    startCommand: >-
+      alembic upgrade head &&
+      uvicorn app.main:app --host 0.0.0.0 --port $PORT
+      --no-server-header --proxy-headers --forwarded-allow-ips='*' --workers 1
+
+    healthCheckPath: /health
+
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12"
+
+      # Arma o gate fail-closed: com isto, a app RECUSA subir se qualquer segredo for
+      # fraco, se o cookie não for Secure, se o HSTS estiver desligado ou se o CORS tiver
+      # curinga. Se o deploy falhar, o log diz exatamente qual variável está errada.
+      - key: HOOKSHADE_ENV
+        value: production
+
+      - key: HOOKSHADE_COOKIE_SECURE
+        value: "true"
+      - key: HOOKSHADE_COOKIE_SAMESITE
+        value: lax
+      - key: HOOKSHADE_HSTS_ENABLED
+        value: "true"
+
+      # --- pedidos na criação, nunca versionados ---
+      - key: HOOKSHADE_SECRET_KEY
+        sync: false
+      - key: HOOKSHADE_ENCRYPTION_KEY
+        sync: false
+      - key: HOOKSHADE_SEED_EMAIL
+        sync: false
+      - key: HOOKSHADE_SEED_PASSWORD
+        sync: false
+      # String de conexão do Neon (inclui ?sslmode=require).
+      - key: HOOKSHADE_DATABASE_URL
+        sync: false
+      # A URL pública do frontend na Vercel. Sem curinga — o gate recusa "*".
+      - key: HOOKSHADE_CORS_ORIGINS
+        sync: false
