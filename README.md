@@ -58,13 +58,51 @@ A URL do banco vem de `HOOKSHADE_DATABASE_URL` (mesma configuração da app). Al
 ```bash
 cd frontend
 npm install
-cp .env.local.example .env.local        # NEXT_PUBLIC_API_BASE aponta para o backend
+cp .env.local.example .env.local        # BACKEND_INTERNAL_URL aponta para o backend
 npm run dev                             # http://localhost:3000
 npm run build                           # build de produção
 npm run lint
 ```
 
 Faça login com as credenciais seed de `backend/.env` (`HOOKSHADE_SEED_EMAIL` / `HOOKSHADE_SEED_PASSWORD`).
+
+## Autenticação: cookie httpOnly + CSRF + proxy same-origin
+
+A sessão **não** vive em `localStorage`. O JWT é emitido dentro de um cookie `httpOnly`
+que o JavaScript não consegue ler — um XSS não tem de onde roubá-la.
+
+```
+Navegador  --(same-origin)-->  Next /api/*  --(origem fixa)-->  FastAPI
+    ^                                                              |
+    +---------- Set-Cookie httpOnly (preservado pelo proxy) -------+
+```
+
+**Proxy (`frontend/app/api/[...path]/route.ts`).** O browser fala só com o próprio front.
+É isso que permite o cookie same-origin (sem `SameSite=None`) e mantém a URL real do backend
+fora do bundle. **Não é um proxy aberto**: o destino é uma origem fixa (`BACKEND_INTERNAL_URL`,
+server-side); o usuário controla apenas caminho e query, nunca o host — do contrário seria SSRF.
+Ele preserva `Set-Cookie`, `X-Request-ID` e o corpo em stream (upload de `.eml` chega intacto).
+
+**Cookie de sessão.** `HttpOnly`, `Path=/`, `SameSite=Lax`, sem `Domain`, `Max-Age` casado com o
+`exp` do JWT. Com `HOOKSHADE_COOKIE_SECURE=true` (obrigatório em produção) ganha `Secure` e o
+prefixo `__Host-`, que faz o navegador **recusar** o cookie se vier sem `Secure`, sem `Path=/`
+ou com `Domain` — nenhum subdomínio comprometido consegue sobrescrevê-lo.
+
+**CSRF (double-submit assinado).** Cookie httpOnly resolve XSS mas **abre CSRF**: o navegador passa
+a anexar a sessão sozinho, inclusive em requisições disparadas por um site terceiro. Por isso
+`POST/PUT/PATCH/DELETE` em `/api/*` exigem `X-CSRF-Token` batendo com o cookie CSRF (que é legível
+por JS de propósito — não é segredo de sessão). Um site terceiro consegue fazer o browser *enviar*
+o cookie, mas a same-origin policy o impede de *ler* o valor para copiá-lo no header. O token é
+assinado por HMAC, então nem um cookie plantado passa. Falha → `403` opaco. `GET/HEAD/OPTIONS`
+são isentos. **O login também exige CSRF** (senão um terceiro poderia logar a vítima na conta dele).
+
+**Endpoints:** `GET /api/v1/auth/csrf` (emite o par) · `POST /auth/login` (grava o cookie; **não**
+devolve o JWT no corpo) · `POST /auth/logout` (apaga o cookie, idempotente) · `GET /auth/me`
+(fonte de verdade da sessão para a UI).
+
+**Limitação honesta:** o logout apaga o cookie, mas **não revoga** o JWT. Um token copiado antes do
+logout vale até expirar (`HOOKSHADE_ACCESS_TOKEN_EXPIRE_MINUTES`). Revogação de verdade exige lista
+de sessões ou refresh token — fora do escopo atual. Mantenha a expiração curta.
 
 ## Fluxo principal
 
@@ -161,14 +199,17 @@ estiverem fracos/default — ver "Deploy de portfólio".
 | `HOOKSHADE_LOGIN_LOCKOUT_MINUTES` | `15` | duração do lockout da conta |
 | `HOOKSHADE_RATE_LIMIT_LOGIN_PER_MINUTE` | `10` | requisições de login por IP/minuto (janela deslizante) |
 | `HOOKSHADE_RATE_LIMIT_ANALYSES_PER_MINUTE` | `30` | criações de análise por IP/minuto |
+| `HOOKSHADE_COOKIE_SECURE` | `false` | cookie de sessão só sob HTTPS. **Obrigatório `true` em produção**; ativa o prefixo `__Host-` |
+| `HOOKSHADE_COOKIE_SAMESITE` | `lax` | `lax` ou `strict`. `none` é **recusado** em produção |
 
 O rate limiting é **em memória, por processo** — suficiente para a instância única atual;
 multi-instância exigirá backend compartilhado (Redis). Logs de requisição saem em **JSON
 estruturado** no stdout (request_id, método, rota, status, latência, user_id) e **nunca**
 contêm senha, token, `raw_content` ou e-mail; `/health` é liveness e `/ready` verifica o banco.
 
-Frontend: `NEXT_PUBLIC_API_BASE` (URL do backend). Gere segredos com
-`python -c "import secrets; print(secrets.token_urlsafe(48))"`.
+Frontend: `BACKEND_INTERNAL_URL` (URL interna do backend, usada **só pelo servidor** do Next no
+proxy). Sem prefixo `NEXT_PUBLIC_` de propósito: assim ela nunca entra no bundle do navegador.
+Gere segredos com `python -c "import secrets; print(secrets.token_urlsafe(48))"`.
 
 ## Deploy de portfólio
 
@@ -240,7 +281,8 @@ stacktrace na tela. Sai com código ≠ 0 se algum passo falhar (CI-friendly).
 
 ## Limitações conhecidas
 
-- Schema via `create_all` (sem migrações). Alterou modelo? Recrie o banco de dev ou adote Alembic.
+- **Sem revogação de sessão.** O logout apaga o cookie, mas um JWT copiado antes segue válido até
+  expirar. Refresh token, revogação global e MFA ainda não existem.
 - Redação de PII é heurística (regex, foco em formatos BR) — pode ter falsos negativos; é uma barreira
   a mais, não a única (o `raw_content` segue cifrado e sob retenção).
 - Regex de regra tem limites anti-ReDoS (tamanho do padrão e do corpus), mas não sandbox de tempo.
