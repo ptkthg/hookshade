@@ -1,0 +1,61 @@
+name: frontend-ci
+
+on:
+  push:
+    branches: [main, "feat/**", "fix/**"]
+    paths: ["frontend/**", ".github/workflows/frontend-ci.yml"]
+  pull_request:
+    paths: ["frontend/**", ".github/workflows/frontend-ci.yml"]
+
+concurrency:
+  group: frontend-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Instalar (lockfile exato)
+        # `npm ci` falha se package.json e lockfile divergirem — é o ponto.
+        run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npx eslint .
+
+      - name: Build de produção
+        # SEM segredo de produção. O build precisa passar apenas com o default do código;
+        # se algum dia depender de BACKEND_INTERNAL_URL em build time, isto quebra — e é
+        # exatamente o alarme que queremos (essa URL é server-side, de runtime).
+        run: npx next build
+
+      - name: Nenhuma URL de backend no bundle do navegador
+        # A CSP e o proxy same-origin dependem de o navegador não conhecer o backend.
+        # Se a URL da API vazar para os chunks do cliente, o modelo cai — e o build passaria
+        # sem reclamar. Este check é a rede de proteção.
+        run: |
+          if grep -rq "onrender.com" .next/static 2>/dev/null; then
+            echo "::error::a URL do backend vazou para o bundle do cliente (.next/static)"
+            grep -rl "onrender.com" .next/static | head
+            exit 1
+          fi
+          echo "OK: nenhuma URL de backend nos chunks do navegador"

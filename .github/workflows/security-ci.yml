@@ -1,0 +1,78 @@
+name: security-ci
+
+on:
+  push:
+    branches: [main, "feat/**", "fix/**"]
+  pull_request:
+
+concurrency:
+  group: security-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  secrets:
+    name: secrets scanning
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Histórico completo: um segredo commitado e depois "removido" continua no
+          # histórico, e é de lá que ele vaza.
+          fetch-depth: 0
+
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  code:
+    name: SAST (python)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: backend/.python-version
+
+      - name: Bandit
+        # -ll: só reporta severidade média ou alta. Ruído baixo não vira gate.
+        # Os testes ficam de fora: senha de teste e assert não são vulnerabilidade.
+        run: |
+          pip install bandit
+          bandit -r backend/app -ll
+
+  deps:
+    name: dependências vulneráveis
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: backend/.python-version
+
+      - name: pip-audit (backend)
+        run: |
+          pip install pip-audit
+          pip-audit -r backend/requirements.txt --strict
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: npm audit (frontend)
+        working-directory: frontend
+        # Falha só em vulnerabilidade alta/crítica: um "moderate" em dep de build não
+        # justifica travar o merge, mas fica visível no log.
+        run: |
+          npm ci --ignore-scripts
+          npm audit --audit-level=high

@@ -1,0 +1,98 @@
+name: backend-ci
+
+on:
+  push:
+    branches: [main, "feat/**", "fix/**"]
+    paths: ["backend/**", ".github/workflows/backend-ci.yml"]
+  pull_request:
+    paths: ["backend/**", ".github/workflows/backend-ci.yml"]
+
+# Um PR que recebe vários pushes cancela as execuções antigas: economiza runner e evita
+# que um resultado velho apareça como se fosse o atual.
+concurrency:
+  group: backend-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    # Postgres EFÊMERO, do próprio workflow. O banco de produção (Neon) nunca é tocado
+    # pelo CI — sua URL sequer é exposta a este job.
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: hookshade
+          POSTGRES_PASSWORD: ci-only-not-a-secret
+          POSTGRES_DB: hookshade_ci
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U hookshade"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # Credenciais de brinquedo, válidas só dentro deste runner descartável.
+      HOOKSHADE_DATABASE_URL: postgresql://hookshade:ci-only-not-a-secret@localhost:5432/hookshade_ci
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: backend/.python-version
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Instalar dependências
+        run: pip install -r requirements.txt
+
+      - name: Alembic — head único
+        # Mais de um head significa migrations que divergiram e vão colidir no deploy.
+        # `alembic heads` lista um por linha; exigimos exatamente uma.
+        run: |
+          heads=$(alembic heads | grep -c '(head)' || true)
+          echo "heads encontrados: $heads"
+          alembic heads
+          test "$heads" -eq 1 || { echo "::error::Alembic com $heads heads — deve haver exatamente 1"; exit 1; }
+
+      - name: Alembic — migrar banco VAZIO até o head
+        # É o mesmo que o Procfile faz no deploy. Se a migration não roda do zero, o
+        # deploy em produção também não rodaria.
+        run: alembic upgrade head
+
+      - name: Alembic — nenhuma migration pendente
+        # Modelo alterado sem gerar migration = schema que só existe na cabeça de quem
+        # escreveu. `check` compara os modelos com o banco migrado.
+        run: alembic check
+
+      - name: pytest
+        run: python -m pytest -q
+
+  # Job separado: falha aqui não se confunde com falha de teste.
+  hygiene:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Nenhum segredo, banco ou dump versionado
+        run: |
+          set -e
+          bad=$(git ls-files | grep -iE '(^|/)\.env$|\.env\.(local|prod|production)$|\.db$|\.sqlite3?$|\.dump$|\.pem$|\.key$|id_rsa' || true)
+          if [ -n "$bad" ]; then
+            echo "::error::arquivos que nunca deveriam ser versionados:"
+            echo "$bad"
+            exit 1
+          fi
+          echo "OK: nenhum .env, banco, dump ou chave privada rastreado"
