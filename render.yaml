@@ -14,6 +14,15 @@ services:
     rootDir: backend
     region: oregon
 
+    # Produção NÃO muda sozinha.
+    #
+    # Com autoDeploy ligado, todo push na branch ia direto para produção sem passar por
+    # nada — os 221 testes não impediam coisa alguma, porque o Render não os consulta.
+    # Branch protection resolveria isso, mas exige repo público ou GitHub Pro; então o
+    # portão é este: o deploy vira um ato deliberado, feito depois do CI verde.
+    branch: main
+    autoDeploy: false
+
     buildCommand: pip install -r requirements.txt
 
     # `alembic upgrade head &&` antes do uvicorn: se a migração falhar, o processo NÃO
