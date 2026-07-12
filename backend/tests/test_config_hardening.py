@@ -14,6 +14,22 @@ def _settings(**kw) -> Settings:
     return Settings(**base)
 
 
+def test_hookshade_env_activates_production(monkeypatch):
+    """O nome documentado em TODO lugar (.env.example, README, runbook de deploy) é
+    HOOKSHADE_ENV. Se o código só lesse HOOKSHADE_ENVIRONMENT, um deploy feito conforme
+    a documentação subiria em modo desenvolvimento SEM AVISO: gate fail-closed inerte,
+    cookie de sessão sem Secure sob HTTPS, sem __Host-, sem HSTS. Falha silenciosa e
+    catastrófica — por isso este teste existe."""
+    monkeypatch.setenv("HOOKSHADE_ENV", "production")
+    assert Settings().is_production is True
+
+
+def test_hookshade_environment_also_works(monkeypatch):
+    """Nome longo continua aceito: quem já configurou assim não quebra."""
+    monkeypatch.setenv("HOOKSHADE_ENVIRONMENT", "production")
+    assert Settings().is_production is True
+
+
 def test_development_is_noop():
     # defaults (environment=development) nunca bloqueiam
     Settings().validate_for_production()  # não levanta

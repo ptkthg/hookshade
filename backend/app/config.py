@@ -1,3 +1,4 @@
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Valores default são de CONVENIÊNCIA para desenvolvimento. Em produção o gate
@@ -8,9 +9,19 @@ _MIN_SECRET_LEN = 32
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="HOOKSHADE_", env_file=".env")
+    model_config = SettingsConfigDict(
+        env_prefix="HOOKSHADE_", env_file=".env", populate_by_name=True
+    )
 
-    environment: str = "development"  # development | production
+    # O prefixo geraria HOOKSHADE_ENVIRONMENT, mas TODA a documentação (.env.example,
+    # README, runbook de deploy) diz HOOKSHADE_ENV. Sem este alias, um deploy feito
+    # conforme a documentação subiria em modo desenvolvimento SEM AVISO: gate fail-closed
+    # inerte, cookie de sessão sem Secure sob HTTPS, sem __Host-, sem HSTS. Aceitamos os
+    # dois nomes para que a falha não possa ser silenciosa.
+    environment: str = Field(
+        "development",  # development | production
+        validation_alias=AliasChoices("HOOKSHADE_ENV", "HOOKSHADE_ENVIRONMENT", "environment"),
+    )
     secret_key: str = DEFAULT_SECRET
     encryption_key: str = ""          # cifra em repouso; OBRIGATÓRIA e forte em produção (SEC-2)
     retention_days: int = 90          # retenção do raw_content antes de purga (P0-11)
