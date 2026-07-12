@@ -65,20 +65,18 @@ def test_normal_login_not_limited(client, low_limits):
 
 
 def test_analyses_post_respects_limit(client, low_limits):
-    token = _login(client).json()["access_token"]
-    headers = {"Authorization": f"Bearer {token}"}
+    _login(client)
     body = {"content": "Corpo de teste sem nada de especial.", "context": None}
     for _ in range(2):
-        assert client.post("/api/v1/analyses/text", json=body, headers=headers).status_code == 200
-    r = client.post("/api/v1/analyses/text", json=body, headers=headers)
+        assert client.post("/api/v1/analyses/text", json=body).status_code == 200
+    r = client.post("/api/v1/analyses/text", json=body)
     assert r.status_code == 429
 
 
 def test_analysis_read_routes_not_limited(client, low_limits):
-    token = _login(client).json()["access_token"]
-    headers = {"Authorization": f"Bearer {token}"}
+    _login(client)
     for _ in range(5):
-        assert client.get("/api/v1/analyses", headers=headers).status_code == 200
+        assert client.get("/api/v1/analyses").status_code == 200
 
 
 def test_limiter_reset_between_tests(client, low_limits):

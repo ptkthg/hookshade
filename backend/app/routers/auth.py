@@ -1,14 +1,16 @@
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 
 from app.audit import record_audit
 from app.config import settings
+from app.cookies import clear_csrf_cookie, clear_session_cookie, set_csrf_cookie, set_session_cookie
+from app.csrf import issue_csrf_token
 from app.deps import get_current_user, get_db
 from app.models import User
 from app.ratelimit import rate_limit_login
-from app.schemas import LoginRequest, TokenResponse, UserOut
+from app.schemas import CsrfResponse, LoginRequest, UserOut
 from app.security import create_access_token, verify_password
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
@@ -36,8 +38,18 @@ def _register_failure(db: Session, user: User) -> None:
     db.commit()
 
 
-@router.post("/login", response_model=TokenResponse, dependencies=[Depends(rate_limit_login)])
-def login(body: LoginRequest, db: Session = Depends(get_db)):
+@router.get("/csrf", response_model=CsrfResponse)
+def csrf(response: Response):
+    """Emite o par CSRF (cookie + corpo). O front guarda o valor em memória e o
+    ecoa em X-CSRF-Token nas operações mutáveis. Não exige sessão: o login também
+    é protegido por CSRF, então o token precisa existir antes de autenticar."""
+    token = issue_csrf_token()
+    set_csrf_cookie(response, token)
+    return CsrfResponse(csrf_token=token)
+
+
+@router.post("/login", response_model=UserOut, dependencies=[Depends(rate_limit_login)])
+def login(body: LoginRequest, response: Response, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == body.email).first()
     if not user or user.status != "active":
         raise _GENERIC_401
@@ -50,7 +62,27 @@ def login(body: LoginRequest, db: Session = Depends(get_db)):
     user.locked_until = None
     user.last_login_at = datetime.now(timezone.utc)
     db.commit()
-    return TokenResponse(access_token=create_access_token(user.email))
+    # O JWT vai SÓ no cookie httpOnly. Devolver o token no corpo anularia a migração:
+    # bastaria um XSS ler a resposta do login para roubar a sessão.
+    set_session_cookie(response, create_access_token(user.email))
+    return UserOut(id=user.id, name=user.name, email=user.email, role=user.role)
+
+
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+def logout(response: Response):
+    """Idempotente: apaga a sessão e responde 204 mesmo sem sessão ativa.
+
+    O cookie CSRF é deliberadamente MANTIDO. Ele não é segredo de sessão (só prova
+    mesma-origem) e apagá-lo tornaria o próprio logout não-idempotente: a segunda
+    chamada não teria como provar origem e levaria 403. Mantê-lo também deixa a
+    tela de login funcional logo após sair.
+
+    LIMITAÇÃO HONESTA: isto apaga o cookie do navegador, mas NÃO revoga o JWT.
+    Um token copiado antes do logout continua válido até expirar
+    (access_token_expire_minutes). Revogação server-side exige lista de sessões ou
+    refresh token, ambos fora do escopo desta rodada.
+    """
+    clear_session_cookie(response)
 
 
 @router.get("/me", response_model=UserOut)

@@ -11,20 +11,18 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
+from tests.conftest import authenticate
+
 from app.models import Analysis, AuditLog
 from app.request_logging import JsonFormatter
 from app.tasks.purge import main, run_purge
 
 
-def _token(client):
-    r = client.post("/api/v1/auth/login",
-                    json={"email": "analyst@hookshade.local", "password": "changeme123"})
-    return r.json()["access_token"]
 
 
 def _create_analysis(client, content="conteúdo"):
-    headers = {"Authorization": f"Bearer {_token(client)}"}
-    return client.post("/api/v1/analyses/text", json={"content": content}, headers=headers).json()["id"]
+    authenticate(client)
+    return client.post("/api/v1/analyses/text", json={"content": content}).json()["id"]
 
 
 def _backdate(db_session, aid, days):

@@ -1,12 +1,10 @@
 from fastapi import Depends, HTTPException, Request, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.database import SessionLocal
 from app.models import User
 from app.security import decode_token
-
-_bearer = HTTPBearer(auto_error=False)
 
 
 def get_db():
@@ -19,12 +17,15 @@ def get_db():
 
 def get_current_user(
     request: Request,
-    creds: HTTPAuthorizationCredentials | None = Depends(_bearer),
     db: Session = Depends(get_db),
 ) -> User:
-    if creds is None:
+    # A sessão vem EXCLUSIVAMENTE do cookie httpOnly. O header Authorization: Bearer
+    # foi removido de propósito: enquanto ele existisse, um XSS ainda poderia
+    # autenticar-se com um token roubado, e a migração seria só cosmética.
+    token = request.cookies.get(settings.session_cookie_name)
+    if not token:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Not authenticated")
-    email = decode_token(creds.credentials)
+    email = decode_token(token)
     if not email:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid token")
     user = db.query(User).filter(User.email == email).first()

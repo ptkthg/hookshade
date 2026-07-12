@@ -8,10 +8,15 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.config import settings
+from app.csrf import verify_csrf_token
 from app.deps import get_db
 from app.request_logging import configure_logging, install_request_logging
 from app.routers import analyses, audit, auth, rules, users
 from app.seed import init_db
+
+# Métodos que mudam estado exigem prova de mesma-origem (double-submit).
+# GET/HEAD/OPTIONS ficam de fora: são seguros por definição e o preflight quebraria.
+_CSRF_PROTECTED_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 
 logger = logging.getLogger("hookshade")
 configure_logging()
@@ -32,6 +37,19 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Hookshade API", version="0.1.0", lifespan=lifespan)
 
 install_request_logging(app)
+
+
+@app.middleware("http")
+async def csrf_guard(request, call_next):
+    if request.method in _CSRF_PROTECTED_METHODS and request.url.path.startswith("/api/"):
+        cookie = request.cookies.get(settings.csrf_cookie_name)
+        header = request.headers.get(settings.csrf_header_name)
+        if not verify_csrf_token(cookie, header):
+            # Mensagem opaca de propósito: não dizer se faltou cookie, faltou header
+            # ou a assinatura não bateu. Isso só ajudaria quem está sondando.
+            return JSONResponse(status_code=403, content={"detail": "CSRF validation failed"})
+    return await call_next(request)
+
 
 app.add_middleware(
     CORSMiddleware,

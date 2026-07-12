@@ -10,6 +10,7 @@ import logging
 
 import pytest
 
+from app.config import settings
 from app.request_logging import JsonFormatter, redact
 
 EMAIL = "analyst@hookshade.local"
@@ -75,8 +76,8 @@ def test_response_carries_request_id_header(client, log_output):
 
 
 def test_authenticated_request_logs_user_id_not_email(client, log_output):
-    token = _login(client).json()["access_token"]
-    client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"})
+    _login(client)
+    client.get("/api/v1/auth/me")
     me_events = [e for e in _lines(log_output)
                  if e.get("event") == "request" and e.get("path") == "/api/v1/auth/me"]
     assert me_events and me_events[0].get("user_id") is not None
@@ -93,27 +94,28 @@ def test_login_does_not_log_password(client, log_output):
 
 
 def test_token_never_appears_in_logs(client, log_output):
-    token = _login(client).json()["access_token"]
-    client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"})
-    assert token not in log_output.getvalue()
+    """O JWT agora vive no cookie de sessão: provamos que ele não aparece no log."""
+    _login(client)
+    jwt = client.cookies.get(settings.session_cookie_name)
+    assert jwt, "login deveria ter emitido o cookie de sessão"
+    client.get("/api/v1/auth/me")
+    assert jwt not in log_output.getvalue()
 
 
 def test_analysis_does_not_log_raw_content(client, log_output):
-    token = _login(client).json()["access_token"]
+    _login(client)
     marker = "CONTEUDO-CONFIDENCIAL-DO-EMAIL-9f8e7d"
     client.post("/api/v1/analyses/text",
-                json={"content": f"De: alguem. {marker}", "context": None},
-                headers={"Authorization": f"Bearer {token}"})
+                json={"content": f"De: alguem. {marker}", "context": None})
     out = log_output.getvalue()
     assert marker not in out
     assert any(e.get("path") == "/api/v1/analyses/text" for e in _lines(out and log_output))
 
 
 def test_validation_error_does_not_leak_body(client, log_output):
-    token = _login(client).json()["access_token"]
+    _login(client)
     marker = "MARCADOR-DE-CORPO-INVALIDO-42"
     r = client.post("/api/v1/analyses/text",
-                    json={"content": "   ", "context": marker},
-                    headers={"Authorization": f"Bearer {token}"})
+                    json={"content": "   ", "context": marker})
     assert r.status_code == 422
     assert marker not in log_output.getvalue()

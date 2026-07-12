@@ -105,9 +105,9 @@ def test_inactive_user_cannot_login(client, db_session):
 
 
 def test_inactive_user_token_is_rejected(client, db_session):
-    token = _login(client).json()["access_token"]
+    _login(client)
     user = _user(db_session)
     user.status = "inactive"
     db_session.commit()
-    r = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"})
+    r = client.get("/api/v1/auth/me")
     assert r.status_code == 401

@@ -49,5 +49,67 @@ def client(db_session):
                         password_hash=hash_password("changeme123")))
     db_session.commit()
     with TestClient(app) as c:
+        arm_csrf(c)
         yield c
     app.dependency_overrides.clear()
+
+
+ADMIN = ("analyst@hookshade.local", "changeme123")
+
+
+def arm_csrf(c):
+    """Pega o token CSRF e o arma no header do client.
+
+    É o que o navegador faz ao carregar a app antes do primeiro POST. Sem isso,
+    TODO método mutável leva 403 — inclusive o próprio login, que é protegido de
+    propósito (login CSRF permitiria logar a vítima na conta do atacante).
+    """
+    token = c.get("/api/v1/auth/csrf").json()["csrf_token"]
+    c.headers["X-CSRF-Token"] = token
+    return token
+
+
+def authenticate(c, email: str = ADMIN[0], password: str = ADMIN[1]):
+    """Autentica um client por COOKIE (não há mais header Bearer).
+
+    O cookie de sessão fica no jar do client e é reenviado sozinho nas requisições
+    seguintes, como num navegador.
+    """
+    arm_csrf(c)
+    return c.post("/api/v1/auth/login", json={"email": email, "password": password})
+
+
+@pytest.fixture
+def login(client):
+    """Autentica o client compartilhado, no lugar."""
+    def _do(email: str = ADMIN[0], password: str = ADMIN[1]):
+        r = authenticate(client, email, password)
+        assert r.status_code == 200, r.text
+        return r
+    return _do
+
+
+@pytest.fixture
+def as_user():
+    """Client PRÓPRIO para uma identidade.
+
+    Necessário porque o cookie é por client: um único client não consegue mais
+    segurar duas sessões ao mesmo tempo, como os headers Bearer permitiam. Testes de
+    ownership/RBAC que comparam dois usuários precisam de um client para cada.
+    """
+    from fastapi.testclient import TestClient
+
+    from app.main import app
+
+    made = []
+
+    def _make(email: str = ADMIN[0], password: str = ADMIN[1]):
+        c = TestClient(app)
+        r = authenticate(c, email, password)
+        assert r.status_code == 200, r.text
+        made.append(c)
+        return c
+
+    yield _make
+    for c in made:
+        c.close()

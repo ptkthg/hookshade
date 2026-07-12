@@ -24,6 +24,28 @@ class Settings(BaseSettings):
     seed_password: str = DEFAULT_SEED_PASSWORD
     cors_origins: str = "http://localhost:3000"
 
+    # --- Sessão em cookie httpOnly ---
+    # cookie_secure=False é default de DEV (localhost é http). Produção exige True
+    # (validate_for_production recusa o contrário).
+    cookie_secure: bool = False
+    cookie_samesite: str = "lax"  # lax | strict. "none" é recusado em produção.
+    csrf_header_name: str = "X-CSRF-Token"
+
+    @property
+    def session_cookie_name(self) -> str:
+        # O prefixo __Host- é a trava mais forte que o browser oferece: só aceita o
+        # cookie se vier com Secure, Path=/ e SEM Domain — logo, nenhum subdomínio
+        # (nem um comprometido) consegue sobrescrevê-lo. Exige Secure, então em dev
+        # (http://localhost) o nome fica sem prefixo, senão o browser descarta.
+        return self._prefixed("hookshade_session")
+
+    @property
+    def csrf_cookie_name(self) -> str:
+        return self._prefixed("hookshade_csrf")
+
+    def _prefixed(self, base: str) -> str:
+        return f"__Host-{base}" if self.cookie_secure else base
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
@@ -49,6 +71,13 @@ class Settings(BaseSettings):
             problems.append("HOOKSHADE_SEED_PASSWORD deve ser trocado do default.")
         if not self.cors_origin_list or "*" in self.cors_origins:
             problems.append("HOOKSHADE_CORS_ORIGINS deve listar origens específicas (sem curinga '*').")
+        if not self.cookie_secure:
+            problems.append("HOOKSHADE_COOKIE_SECURE deve ser true em produção (cookie de sessão só sob HTTPS).")
+        if self.cookie_samesite.strip().lower() not in ("lax", "strict"):
+            problems.append(
+                "HOOKSHADE_COOKIE_SAMESITE deve ser 'lax' ou 'strict'. "
+                "'none' enviaria a sessão cross-site e é desnecessário com o proxy same-origin."
+            )
         if problems:
             raise RuntimeError(
                 "Configuração de produção insegura — corrija antes de subir:\n- " + "\n- ".join(problems)
