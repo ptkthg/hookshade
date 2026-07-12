@@ -44,9 +44,43 @@ const check = (name, cond) => { results.push([!!cond, name]); console.log((cond 
   const pageErrors = [];
   page.on("pageerror", (e) => pageErrors.push(String(e)));
 
+  // Violação de CSP aparece como erro de console. Se a política estiver mal calibrada,
+  // a app quebra em produção — e é aqui que descobrimos, não o cliente.
+  const cspViolations = [];
+  page.on("console", (m) => {
+    if (/Content Security Policy|Refused to/i.test(m.text())) cspViolations.push(m.text().slice(0, 140));
+  });
+
   // API viva
   const health = await ctx.request.get(API + "/health").catch(() => null);
   check("API /health responde ok", health && health.ok());
+
+  // 0. HTTPS de verdade
+  check("frontend sob HTTPS", FRONTEND.startsWith("https://"));
+  check("API sob HTTPS", API.startsWith("https://"));
+
+  // 0b. Headers de segurança na resposta REAL (não em teste)
+  const feResp = await ctx.request.get(FRONTEND + "/login");
+  const h = feResp.headers();
+  const csp = h["content-security-policy"] || "";
+  check("frontend: X-Content-Type-Options nosniff", h["x-content-type-options"] === "nosniff");
+  check("frontend: X-Frame-Options DENY", h["x-frame-options"] === "DENY");
+  check("frontend: Referrer-Policy", !!h["referrer-policy"]);
+  check("frontend: Permissions-Policy", !!h["permissions-policy"]);
+  check("frontend: HSTS >= 1 ano", /max-age=(3153600\d|[3-9]\d{7,})/.test(h["strict-transport-security"] || ""));
+  check("frontend: CSP presente", csp.length > 0);
+  check("frontend: CSP com nonce", /'nonce-[a-f0-9]+'/.test(csp));
+  check("frontend: CSP SEM unsafe-inline em script-src",
+    !/script-src[^;]*'unsafe-inline'/.test(csp));
+  check("frontend: CSP SEM unsafe-eval", !csp.includes("'unsafe-eval'"));
+  check("frontend: frame-ancestors none", csp.includes("frame-ancestors 'none'"));
+  check("frontend: não anuncia X-Powered-By", !h["x-powered-by"]);
+
+  const apiH = (await ctx.request.get(API + "/health")).headers();
+  check("API: nosniff", apiH["x-content-type-options"] === "nosniff");
+  check("API: CSP default-src none", (apiH["content-security-policy"] || "").includes("default-src 'none'"));
+  check("API: HSTS presente", !!apiH["strict-transport-security"]);
+  check("API: não anuncia uvicorn", !/uvicorn/i.test(apiH["server"] || ""));
 
   // 1. landing pública
   await page.goto(FRONTEND + "/");
@@ -136,6 +170,15 @@ const check = (name, cond) => { results.push([!!cond, name]); console.log((cond 
   const LEAK = /eyJ[A-Za-z0-9._-]{10,}|Bearer\s+[A-Za-z0-9]|Traceback|Internal Server Error|HOOKSHADE_[A-Z_]*=|SECRET_KEY|ENCRYPTION_KEY|-----BEGIN/;
   check("sem token/segredo/stacktrace exposto na tela", !LEAK.test(bodyText));
   check("sem erros de página (pageerror)", pageErrors.length === 0);
+
+  // Cookie de sessão, no navegador real: é aqui que __Host-/Secure deixam de ser teoria.
+  const jar = await ctx.cookies();
+  const sess = jar.find((c) => c.name.endsWith("hookshade_session"));
+  check("cookie de sessão é httpOnly", !!sess && sess.httpOnly);
+  check("cookie de sessão é Secure", !!sess && sess.secure);
+  check("cookie de sessão usa prefixo __Host-", !!sess && sess.name.startsWith("__Host-"));
+  check("nenhuma violação de CSP nas rotas percorridas", cspViolations.length === 0);
+  if (cspViolations.length) cspViolations.slice(0, 5).forEach((v) => console.log("  CSP: " + v));
 
   await browser.close();
   const failed = results.filter((r) => !r[0]);
