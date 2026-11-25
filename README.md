@@ -309,6 +309,3 @@ enriquecimento TI opt-in, IA narrativa com coleira anti-injeção, relatório PD
 
 ## Documentação
 
-- Design: `docs/superpowers/specs/2026-07-01-hookshade-vertical-slice-design.md`
-- Plano do motor de regras: `docs/superpowers/plans/2026-07-03-hookshade-p1-3-rule-engine.md`
-- Backlog e revisão de segurança: `docs/superpowers/backlog/` e `docs/superpowers/security/`
