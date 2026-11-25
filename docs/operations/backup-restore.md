@@ -14,7 +14,7 @@ Guarde a chave em um gerenciador de segredos separado do dump (nunca no mesmo lu
 nunca no repo). Perder a chave = perder o histórico de `raw_content`; vazar chave+dump
 juntos = vazar tudo.
 
-## Backup (Postgres — Railway ou qualquer host)
+## Backup (Postgres — Neon)
 
 ```bash
 # do seu terminal, com a URL do Postgres de produção:
@@ -25,8 +25,8 @@ HOOKSHADE_DATABASE_URL="postgres://..." ./scripts/db-backup.sh ./backups
 - Precisa do cliente Postgres (`pg_dump`). Sem ele instalado localmente, rode via Docker:
   `docker run --rm -v "$PWD/backups:/backups" postgres:16 pg_dump --format=custom --no-owner -f /backups/hookshade-$(date -u +%Y%m%dT%H%M%SZ).dump "$URL"`
 - **Nunca** commite dumps (`backups/` está no .gitignore) e **nunca** deixe a URL em arquivo.
-- Railway: o plano pago tem backups automáticos do volume — trate-os como camada extra,
-  não como substituto do dump lógico que você controla e testa.
+- Neon: confirme a retenção de recuperação do plano contratado; trate-a como camada extra,
+  sem substituir o dump lógico que você controla e testa.
 
 ### Periodicidade recomendada
 
@@ -65,5 +65,5 @@ volta. Não use SQLite além de dev/teste.
 |---|---|---|---|
 | 2026-07-07 | Claude (assistido) | Postgres 16 em Docker local. Origem: `alembic upgrade head` + seed user + análise cifrada. `db-backup.sh` → dump 26K → `db-restore.sh` em banco novo (`hookshade_restore`). Validação: `alembic_version=f08dcac4679c` (== head do repo), contagens batendo (1 user, 1 analysis), `verify_password` da credencial seed OK e `decrypt()` do `raw_content` restaurado OK com a mesma `ENCRYPTION_KEY`. Container descartado ao final. | ✅ |
 
-> Pendente: repetir este teste uma vez contra o Postgres do Railway quando o deploy de
-> produção estiver ativo (o procedimento é o mesmo; muda só a URL de origem).
+> Pendente: repetir este teste em uma branch descartável do Neon, sem sobrescrever produção.
+> O registro acima é histórico; o head atual inclui `92cb401a0001` (`token_version`).

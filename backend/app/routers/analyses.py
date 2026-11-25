@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from app.analysis.pipeline import run_analysis
 from app.audit import record_audit
 from app.crypto import encrypt
-from app.deps import get_current_user, get_db
+from app.deps import get_current_user, get_db, require_writer
 from app.models import IOC, Analysis, Finding, Recommendation, User
 from app.ratelimit import rate_limit_analyses
 from app.rules.service import list_active_rule_dicts
@@ -77,7 +77,7 @@ async def create_analysis(
     file: UploadFile | None = File(default=None),
     content: str | None = Form(default=None),
     context: str | None = Form(default=None),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_writer),
     db: Session = Depends(get_db),
 ):
     if file is not None:
@@ -98,7 +98,7 @@ async def create_analysis(
 @router.post("/text", response_model=AnalysisDetail, dependencies=[Depends(rate_limit_analyses)])
 def create_analysis_text(
     body: AnalyzeTextRequest,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_writer),
     db: Session = Depends(get_db),
 ):
     if not body.content.strip():
@@ -123,9 +123,26 @@ def get_analysis(analysis_id: int, user: User = Depends(get_current_user), db: S
 
 
 @router.delete("/{analysis_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_analysis(analysis_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def delete_analysis(analysis_id: int, user: User = Depends(require_writer), db: Session = Depends(get_db)):
     """Exclusão sob demanda (P0-11): remove a análise (do dono ou admin) e audita."""
     a = _get_owned_or_404(db, analysis_id, user)
     db.delete(a)
     db.commit()
     record_audit(db, "analysis.delete", actor_id=user.id, analysis_id=analysis_id)
+
+
+@router.post("/samples/{sample_id}", response_model=AnalysisDetail,
+             dependencies=[Depends(rate_limit_analyses)])
+def test_sample(sample_id: str, _: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    from dataclasses import asdict
+    from datetime import datetime, timezone
+    from app.samples import SAMPLES
+
+    raw = SAMPLES.get(sample_id)
+    if raw is None:
+        raise HTTPException(404, "Sample not found")
+    result, _sha = run_analysis(raw, rules=list_active_rule_dicts(db))
+    data = asdict(result)
+    for ioc in data["iocs"]:
+        ioc.pop("value")
+    return AnalysisDetail(id=0, source_type="sample", created_at=datetime.now(timezone.utc), **data)

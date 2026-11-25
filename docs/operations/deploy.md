@@ -13,7 +13,7 @@
 > POST forjado (403), RBAC, anti-IDOR (404), upload `.eml` pelo proxy, e o navegador nunca
 > falando direto com a API.
 
-Arquitetura escolhida depois que o Railway passou a exigir cartão para criar serviços.
+Arquitetura atual de portfólio: frontend na Vercel, API no Render e Postgres no Neon.
 Este caminho é **gratuito de verdade**: nenhuma das três plataformas pede cartão para o
 que usamos aqui.
 
@@ -35,9 +35,9 @@ Neon    —  PostgreSQL
 
 ---
 
-## Diferença importante em relação ao plano original (Railway)
+## API pública e proxy same-origin
 
-No Railway, o backend ficaria **só na rede privada**. Aqui ele é **público**: a Vercel não
+O backend é **público**: a Vercel não
 tem rede privada com o Render, então o proxy do Next chama a API pela internet.
 
 Isso **não quebra** o modelo de segurança:
@@ -172,7 +172,8 @@ regras, auditoria, RBAC, logout.
 `Report-Only` (relata sem bloquear) e a UI volta. Investigue, corrija, remova a variável.
 
 **Deploy ruim.** Vercel e Render mantêm os deployments anteriores — promova o anterior pelo
-painel. Nenhuma fase até aqui altera schema, então não há migração para desfazer.
+painel. A coluna aditiva `token_version` pode permanecer ao reverter o código;
+reverter para uma versão sem revogação remove essa proteção e exige avaliação prévia.
 
 **Migração falhou.** O start encadeia `alembic upgrade head && uvicorn`: se a migração
 falhar, o processo **não sobe** e o deploy anterior continua servindo. Leia o log, corrija,
@@ -193,5 +194,27 @@ não há versionamento de chave e trocá-la torna o histórico ilegível (Fase 6
 - **Sem backup automático nem restore comprovado.** Neon tem branching/PITR no free tier,
   mas ainda não exercitamos. Fase 3.
 - **Sem monitoramento.** Se cair, ninguém é avisado. Fase 3.
-- **Logout não revoga o JWT.** Token copiado antes vale até expirar (30 min).
+- **Revogação por conta.** Logout, senha, bloqueio e desativação invalidam todas as sessões;
+  um logout no demo compartilhado pode desconectar outro visitante.
 - **Não processe e-mail corporativo real de terceiros** antes da Fase 7 (base legal e DPA).
+
+## Habilitar a demonstração
+
+No Render, defina `DEMO_ENABLED=true` e `DEMO_PASSWORD` com um valor forte e exclusivo
+no painel de segredos. Sem senha, o demo fica desligado mesmo com o flag ligado.
+Não grave essa senha em arquivo nem a divulgue aos visitantes. O endpoint público de
+login demo só emite sessões do papel `demo`, protegido por CSRF e limite de 3/IP/minuto.
+
+Com as mesmas variáveis do serviço, execute em `backend`:
+
+```bash
+alembic upgrade head
+python -m app.seed
+```
+
+O start do `render.yaml` já executa ambos antes do Uvicorn. O seed cria
+`demo@hookshade.example`, quatro análises fictícias e uma regra demonstrativa de forma
+idempotente. Não altera regras existentes nem recria análises seed ainda presentes.
+Alterar `DEMO_PASSWORD` e rodar novamente o seed revoga as sessões demo existentes.
+`DEMO_ENABLED=false` impede novos logins e bloqueia o acesso demo após
+a aplicação carregar a nova configuração. A CSP de produção permanece aplicada no Compose.

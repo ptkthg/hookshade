@@ -67,6 +67,7 @@ def change_role(user_id: int, body: UserRoleIn,
                             "Cannot remove the last active admin")
     old_role = user.role
     user.role = body.role
+    user.token_version += 1
     db.commit()
     record_audit(db, "user.role_changed", actor_id=admin.id,
                  detail=f"user_id={user.id} {old_role}->{user.role}")
@@ -84,6 +85,7 @@ def change_status(user_id: int, body: UserStatusIn,
         raise HTTPException(status.HTTP_409_CONFLICT,
                             "Cannot deactivate the last active admin")
     user.status = body.status
+    user.token_version += 1
     db.commit()
     action = "user.deactivated" if body.status == "inactive" else "user.activated"
     record_audit(db, action, actor_id=admin.id, detail=f"user_id={user.id}")
@@ -95,6 +97,7 @@ def reset_password(user_id: int, body: UserPasswordIn,
                    admin: User = Depends(require_role("admin")), db: Session = Depends(get_db)):
     user = _get_user_or_404(db, user_id)
     user.password_hash = hash_password(body.password)
+    user.token_version += 1
     # senha nova = credencial nova: limpa estado de lockout
     user.failed_login_attempts = 0
     user.locked_until = None

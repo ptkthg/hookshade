@@ -8,7 +8,7 @@ const SEVERITIES = ["baixo", "médio", "alto", "crítico"];
 const EXAMPLE = JSON.stringify(
   {
     all: [
-      { field: "from_domain", op: "endswith", value: "paypa1.com" },
+      { field: "from_domain", op: "endswith", value: "contoso.example" },
       { any: [
         { field: "subject", op: "contains", value: "urgente" },
         { field: "has_anchor_mismatch", op: "is_true" },

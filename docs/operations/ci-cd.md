@@ -37,7 +37,10 @@ Se o projeto ganhar mais de um committer, isto precisa virar branch protection d
 | | `SAST (python)` | Bandit (`-ll`: médio/alto) |
 | | `dependências vulneráveis` | `pip-audit --strict` e `npm audit --audit-level=high` |
 
-Nenhum workflow acessa produção. Nenhum consome segredo.
+Nenhum workflow acessa produção. Os testes usam somente placeholders de desenvolvimento.
+`frontend-ci` também executa `npm test` (Vitest/RTL/MSW). O workflow `e2e` sobe Compose,
+espera a saúde, roda Playwright e publica relatório e capturas. Actions fixadas por SHA,
+com versão em comentário e consulta à API oficial em `docs/tasks/01-actions-verificados.json`.
 
 ---
 
@@ -78,7 +81,7 @@ node postdeploy-smoke.cjs
 
 ## Sinais de sucesso
 
-- Os 3 workflows verdes no commit.
+- Os 4 workflows verdes no commit.
 - Smoke 37/37 depois do deploy.
 
 ## Sinais de falha

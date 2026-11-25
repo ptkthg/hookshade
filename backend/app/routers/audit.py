@@ -6,7 +6,7 @@ append-only da trilha. Não expõe `raw_content` nem qualquer dado sensível.
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
-from app.deps import get_current_user, get_db
+from app.deps import get_db, require_role
 from app.models import AuditLog, User
 from app.schemas import AuditEntryOut, AuditPage
 
@@ -18,7 +18,7 @@ def list_audit(
     action: str | None = Query(default=None, description="Filtra por ação exata"),
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_role("admin")),
     db: Session = Depends(get_db),
 ):
     q = db.query(AuditLog)

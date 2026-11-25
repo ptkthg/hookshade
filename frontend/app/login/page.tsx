@@ -1,16 +1,34 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { login } from "@/lib/api";
+import { getAuthConfig, login, loginDemo } from "@/lib/api";
+import { ApiWakeup } from "@/components/ApiWakeup";
 import { Wordmark } from "@/components/brand";
 
 export default function LoginPage() {
+  return <ApiWakeup><LoginForm /></ApiWakeup>;
+}
+
+function LoginForm() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [demoEnabled, setDemoEnabled] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    getAuthConfig().then((c) => { if (alive) setDemoEnabled(c.demo_enabled); }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
+
+  async function enterDemo() {
+    setError(""); setBusy(true);
+    try { await loginDemo(); router.push("/historico"); }
+    catch (err) { setError((err as Error).message); }
+    finally { setBusy(false); }
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -42,7 +60,9 @@ export default function LoginPage() {
             <p className="text-sm mt-1" style={{ color: "var(--muted)" }}>Triagem defensiva de phishing.</p>
           </div>
           <div className="space-y-3">
+            <label htmlFor="login-email" className="block text-sm">E-mail</label>
             <input
+              id="login-email" name="email" type="email" required autoCapitalize="none" spellCheck={false}
               className={field}
               style={{ background: "var(--panel-top)", border: "1px solid var(--hair)" }}
               placeholder="E-mail"
@@ -51,7 +71,9 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
+            <label htmlFor="login-password" className="block text-sm">Senha</label>
             <input
+              id="login-password" name="password" required
               className={field}
               style={{ background: "var(--panel-top)", border: "1px solid var(--hair)" }}
               type="password"
@@ -62,7 +84,7 @@ export default function LoginPage() {
               onChange={(e) => setPassword(e.target.value)}
             />
           </div>
-          {error && <p className="text-sm" style={{ color: "#e8776b" }}>{error}</p>}
+          {error && <p role="alert" className="text-sm" style={{ color: "#e8776b" }}>{error}</p>}
           <button
             disabled={busy}
             className="w-full rounded-full py-2.5 text-sm font-medium text-white transition-all duration-300 hover:-translate-y-0.5 disabled:opacity-50"
@@ -70,6 +92,10 @@ export default function LoginPage() {
           >
             {busy ? "Entrando…" : "Entrar"}
           </button>
+          {demoEnabled && <button type="button" onClick={enterDemo} disabled={busy}
+            className="w-full rounded-full border border-[var(--hair)] px-4 py-3 text-sm disabled:opacity-50">
+            Entrar como demo
+          </button>}
         </form>
         <p className="text-center text-xs mt-6" style={{ color: "var(--faint)" }}>
           <Link href="/" className="hover:text-white transition-colors">← voltar à página inicial</Link>

@@ -33,6 +33,10 @@ class Settings(BaseSettings):
     database_url: str = "sqlite:///./hookshade.db"
     seed_email: str = "analyst@hookshade.local"
     seed_password: str = DEFAULT_SEED_PASSWORD
+    demo_enabled: bool = Field(False, validation_alias="DEMO_ENABLED")
+    demo_password: str = Field("", validation_alias="DEMO_PASSWORD")
+    demo_session_minutes: int = Field(30, gt=0, validation_alias="DEMO_SESSION_MINUTES")
+    e2e_seed_enabled: bool = False  # somente Compose/E2E; ignorado em produção
     cors_origins: str = "http://localhost:3000"
 
     # --- Sessão em cookie httpOnly ---

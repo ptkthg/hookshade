@@ -1,9 +1,13 @@
 "use client";
-import { useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { getMe, logout as apiLogout } from "@/lib/api";
 import { Icons, Wordmark, type IconName } from "@/components/brand";
+import { ApiWakeup } from "@/components/ApiWakeup";
+
+const SessionContext = createContext<{ email: string; role: string } | null>(null);
+export const useCurrentUser = () => useContext(SessionContext);
 
 /* Casca da área autenticada: sidebar fixa no desktop + topbar (visual portado do
    Hookshade Lab, adaptado ao Next). Landing e login continuam fora dela.
@@ -15,7 +19,7 @@ const NAV: { href: string; label: string; icon: IconName; adminOnly?: boolean; o
   { href: "/nova-analise", label: "Nova análise", icon: "scan" },
   { href: "/historico", label: "Histórico", icon: "history", owns: ["/resultado"] },
   { href: "/regras", label: "Regras", icon: "shield" },
-  { href: "/auditoria", label: "Auditoria", icon: "audit" },
+  { href: "/auditoria", label: "Auditoria", icon: "audit", adminOnly: true },
   { href: "/usuarios", label: "Usuários", icon: "users", adminOnly: true },
 ];
 
@@ -23,6 +27,10 @@ const isActive = (pathname: string, l: (typeof NAV)[number]) =>
   [l.href, ...(l.owns ?? [])].some((p) => pathname.startsWith(p));
 
 export function AppShell({ children }: { children: ReactNode }) {
+  return <ApiWakeup><AuthenticatedShell>{children}</AuthenticatedShell></ApiWakeup>;
+}
+
+function AuthenticatedShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [me, setMe] = useState<{ email: string; role: string } | null>(null);
@@ -40,6 +48,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [router]);
 
   const isAdmin = me?.role === "admin";
+  const restricted = !isAdmin && ["/usuarios", "/auditoria"].some((p) => pathname === p || pathname.startsWith(p + "/"));
   const links = NAV.filter((l) => !l.adminOnly || isAdmin);
 
   const logout = async () => {
@@ -146,7 +155,12 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </header>
 
-        <div className="flex-1">{children}</div>
+        {me?.role === "demo" && <p role="status" className="border-b border-[var(--hair)] bg-[var(--raise)] px-6 py-2 text-xs text-[var(--muted)]">
+          Demonstração · dados fictícios · somente leitura
+        </p>}
+        <div className="flex-1"><SessionContext.Provider value={me}>
+          {restricted ? <p role="alert" className="p-8">Acesso restrito a administradores.</p> : children}
+        </SessionContext.Provider></div>
       </div>
     </div>
   );

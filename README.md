@@ -1,311 +1,136 @@
-# Hookshade
+﻿# Hookshade
 
-### 🔗 No ar: **https://hookshade.vercel.app**
+Hookshade is a full-stack phishing triage portfolio built with FastAPI, Next.js and PostgreSQL.
+It explains risk through evidence and offers a read-only demo using fictional email samples.
 
-Frontend na Vercel · API no Render · Postgres no Neon. Deploy verificado por smoke
-automatizado (37/37) contra o ambiente real — ver [`docs/operations/deploy.md`](docs/operations/deploy.md).
+Plataforma defensiva para triagem de phishing em SOC: upload de `.eml` ou texto bruto → parser → IOCs → leitura de SPF/DKIM/DMARC dos headers → detecção de URLs mascaradas → índice de risco explicável, evidências e recomendações. Regras declarativas, histórico e auditoria completam o fluxo. O pipeline **não faz chamadas externas**, não abre URLs nem executa anexos.
 
-> **Limitações honestas deste ambiente:** o backend roda em free tier e **dorme após 15 min**
-> de inatividade (o primeiro acesso pode levar ~50s). A purga de retenção ainda **não é
-> agendada** e não há monitoramento nem backup automático (Fase 3). O logout apaga o cookie
-> mas **não revoga** o JWT. **Não submeta e-mail corporativo real de terceiros**: a base legal
-> e o DPA ainda não existem (Fase 7).
+**[Abrir a aplicação](https://hookshade.vercel.app)** · Vercel + Render + Neon.
+A API pode levar cerca de um minuto para acordar no plano gratuito do Render. A tela avisa após 3 segundos e tenta novamente automaticamente. O botão **Entrar como demo** aparece quando o operador habilita o perfil no backend.
 
----
+## Explorar a demonstração
 
-Plataforma web **defensiva** de triagem de phishing para SOC/Blue Team: submeter um `.eml`/texto →
-parser → extração de IOCs → autenticação de e-mail (SPF/DKIM/DMARC lidos do header) → detecção de
-URL mascarada → **índice de risco explicável** → tela de resultado com evidências. Inclui
-**auditoria**, **retenção com cifra em repouso** e um **motor de regras de detecção editável** que o
-próprio analista escreve — sem executar código.
+1. Na tela de login, selecione **Entrar como demo**, sem informar uma senha.
+2. Abra uma das quatro análises fictícias no histórico e confira score, evidências e IOCs defanged.
+3. Consulte as regras ou abra **Nova análise → Testar com amostra** para executar uma mensagem do projeto sem salvar dados.
 
-> Uso ético, autorizado e corporativo. A ferramenta organiza evidências e calcula um índice
-> heurístico **advisory**; **não substitui a decisão do analista**, não executa anexos e não
-> resolve/detona URLs online. Toda decisão de risco é rastreável (regra + evidência).
+O demo é somente leitura: upload, texto livre, exclusão, alterações de regras e administração são bloqueados no backend com `403`. A faixa no topo identifica os dados fictícios. Use exclusivamente mensagens fictícias neste portfólio. O índice é heurístico e depende da avaliação humana; SPF/DKIM/DMARC são lidos dos headers, sem revalidação DNS.
 
-## Stack
+## Telas
 
-- **Backend:** Python · FastAPI · Pydantic v2 · SQLAlchemy 2 · PyJWT · bcrypt · cryptography (Fernet) · pytest
-- **Frontend:** Next.js 16 (App Router) · React 19 · TypeScript · Tailwind CSS
-- **Persistência:** SQLite por padrão (troque `HOOKSHADE_DATABASE_URL` por Postgres em produção)
+Capturas reais geradas pelo Playwright. A origem e as limitações da execução local estão no [resultado da spec 01](docs/tasks/01-resultado.md).
 
-## Requisitos
+| Login | Nova análise |
+|---|---|
+| ![Login com acesso demo](docs/img/login.png) | ![Formulário em modo somente leitura](docs/img/nova-analise.png) |
+| Resultado | Regras |
+| ![Score, evidências e IOCs](docs/img/resultado.png) | ![Regras de detecção](docs/img/regras.png) |
 
-- Python 3.11+ (testado em 3.14, 64-bit)
-- Node.js 18+ (testado em 24)
+## Arquitetura
 
-## Setup — Backend
+```mermaid
+flowchart LR
+    Browser[Navegador] -->|HTTPS /api same-origin| Web[Next.js · Vercel]
+    Web -->|Proxy de origem fixa · HTTPS| API[FastAPI · Render]
+    API -->|TLS · SQLAlchemy / Alembic| DB[(PostgreSQL · Neon)]
+    API --> Pipeline[Parser → IOCs → regras → score explicável]
+```
+
+O navegador usa `/api/*`; `BACKEND_INTERNAL_URL` é server-side. O JWT fica em cookie `HttpOnly`, com CSRF assinado para métodos mutáveis. Em produção, o cookie usa `Secure`, `SameSite=Lax`, `Path=/`, sem `Domain` e prefixo `__Host-`.
+
+Papéis: `admin` gerencia usuários e regras; `analyst` trabalha com as próprias análises; `demo` consulta as próprias análises seed e testa amostras fechadas. O papel legado `viewer` continua suportado. Usuários e auditoria global são exclusivos do admin, tanto na interface quanto na API.
+
+## Rodar localmente
+
+Requer Docker Engine e Compose v2.24+. Os valores de `.env.example` são placeholders públicos de desenvolvimento, carregados pelo Compose; não é necessário criar um arquivo de segredos.
+
+```bash
+docker compose up --build
+# http://localhost:3000 → Entrar como demo
+# Admin local: admin@example.com / dev-only-admin-placeholder
+```
+
+O Compose espera o Postgres ficar saudável, aplica as migrações, roda o seed e inicia API e web. As duas imagens da aplicação usam build multi-stage e usuário sem root. O banco persiste em volume Docker; somente a porta web é publicada em loopback. Um `.env` opcional na raiz sobrescreve os valores da API; ao trocar a credencial do Postgres, ajuste também `HOOKSHADE_DATABASE_URL`. Nunca use esses placeholders em produção.
+
+Sem Docker, instale Python 3.12+ e Node 24; em dois terminais:
 
 ```bash
 cd backend
 python -m venv .venv
-.venv/Scripts/python -m pip install -r requirements.txt   # Windows (Git Bash); use .venv/bin/python em Linux/macOS
-cp .env.example .env                                       # ajuste os segredos (ver "Variáveis de ambiente")
-.venv/Scripts/python -m app.seed                           # cria tabelas + usuário seed (papel admin)
-.venv/Scripts/python -m uvicorn app.main:app --reload --port 8000
+# Ative .venv conforme seu sistema.
+pip install -r requirements.txt
+alembic upgrade head
+python -m app.seed
+uvicorn app.main:app --reload --port 8000
 ```
-
-API em `http://localhost:8000` · docs interativas em `/docs`.
-
-**Testes:** `.venv/Scripts/python -m pytest` (a suíte precisa do interpretador do venv; o Python global
-pode não ter as dependências).
-
-## Migrações de schema (Alembic)
-
-O schema é versionado por **Alembic** — em produção ele é o único mecanismo de criação/evolução
-(o `Procfile` roda `alembic upgrade head` antes do start; `create_all` fica restrito a dev/teste).
-
-```bash
-cd backend
-.venv/Scripts/python -m alembic upgrade head                      # aplica migrações pendentes
-.venv/Scripts/python -m alembic revision --autogenerate -m "..."  # gera migração após mudar modelos
-.venv/Scripts/python -m alembic downgrade -1                      # reverte a última migração
-```
-
-A URL do banco vem de `HOOKSHADE_DATABASE_URL` (mesma configuração da app). Alterou um modelo em
-`app/models.py`? Gere a migração, revise o arquivo em `alembic/versions/` e rode os testes —
-`tests/test_migrations.py` falha se o schema migrado divergir dos modelos.
-
-## Setup — Frontend
 
 ```bash
 cd frontend
-npm install
-cp .env.local.example .env.local        # BACKEND_INTERNAL_URL aponta para o backend
-npm run dev                             # http://localhost:3000
-npm run build                           # build de produção
-npm run lint
+npm ci
+# BACKEND_INTERNAL_URL=http://localhost:8000 (padrão)
+npm run dev
 ```
 
-Faça login com as credenciais seed de `backend/.env` (`HOOKSHADE_SEED_EMAIL` / `HOOKSHADE_SEED_PASSWORD`).
+Configure `HOOKSHADE_SEED_EMAIL` e `HOOKSHADE_SEED_PASSWORD` no ambiente ou em `backend/.env` a partir de `backend/.env.example`. Para habilitar o demo, configure também `DEMO_ENABLED=true` e `DEMO_PASSWORD` antes de executar o seed. A configuração completa do ambiente Compose está em `.env.example` na raiz.
 
-## Autenticação: cookie httpOnly + CSRF + proxy same-origin
-
-A sessão **não** vive em `localStorage`. O JWT é emitido dentro de um cookie `httpOnly`
-que o JavaScript não consegue ler — um XSS não tem de onde roubá-la.
-
-```
-Navegador  --(same-origin)-->  Next /api/*  --(origem fixa)-->  FastAPI
-    ^                                                              |
-    +---------- Set-Cookie httpOnly (preservado pelo proxy) -------+
-```
-
-**Proxy (`frontend/app/api/[...path]/route.ts`).** O browser fala só com o próprio front.
-É isso que permite o cookie same-origin (sem `SameSite=None`) e mantém a URL real do backend
-fora do bundle. **Não é um proxy aberto**: o destino é uma origem fixa (`BACKEND_INTERNAL_URL`,
-server-side); o usuário controla apenas caminho e query, nunca o host — do contrário seria SSRF.
-Ele preserva `Set-Cookie`, `X-Request-ID` e o corpo em stream (upload de `.eml` chega intacto).
-
-**Cookie de sessão.** `HttpOnly`, `Path=/`, `SameSite=Lax`, sem `Domain`, `Max-Age` casado com o
-`exp` do JWT. Com `HOOKSHADE_COOKIE_SECURE=true` (obrigatório em produção) ganha `Secure` e o
-prefixo `__Host-`, que faz o navegador **recusar** o cookie se vier sem `Secure`, sem `Path=/`
-ou com `Domain` — nenhum subdomínio comprometido consegue sobrescrevê-lo.
-
-**CSRF (double-submit assinado).** Cookie httpOnly resolve XSS mas **abre CSRF**: o navegador passa
-a anexar a sessão sozinho, inclusive em requisições disparadas por um site terceiro. Por isso
-`POST/PUT/PATCH/DELETE` em `/api/*` exigem `X-CSRF-Token` batendo com o cookie CSRF (que é legível
-por JS de propósito — não é segredo de sessão). Um site terceiro consegue fazer o browser *enviar*
-o cookie, mas a same-origin policy o impede de *ler* o valor para copiá-lo no header. O token é
-assinado por HMAC, então nem um cookie plantado passa. Falha → `403` opaco. `GET/HEAD/OPTIONS`
-são isentos. **O login também exige CSRF** (senão um terceiro poderia logar a vítima na conta dele).
-
-**Endpoints:** `GET /api/v1/auth/csrf` (emite o par) · `POST /auth/login` (grava o cookie; **não**
-devolve o JWT no corpo) · `POST /auth/logout` (apaga o cookie, idempotente) · `GET /auth/me`
-(fonte de verdade da sessão para a UI).
-
-**Limitação honesta:** o logout apaga o cookie, mas **não revoga** o JWT. Um token copiado antes do
-logout vale até expirar (`HOOKSHADE_ACCESS_TOKEN_EXPIRE_MINUTES`). Revogação de verdade exige lista
-de sessões ou refresh token — fora do escopo atual. Mantenha a expiração curta.
-
-## Fluxo principal
-
-1. **Login** → 2. **Nova Análise** (upload `.eml` ou colar texto + contexto) → 3. **Resultado**
-   (índice advisory, severidade, evidências por finding, regras editáveis disparadas, IOCs defanged,
-   headers, recomendações) → 4. **Histórico** → 5. **Regras** → 6. **Auditoria**.
-
-## Motor de regras de detecção (P1-3)
-
-Regras são **condições declarativas em JSON** avaliadas por um interpretador puro — **nunca há `eval`,
-`exec` ou execução de código**. Cada condição opera sobre uma projeção *whitelisted* do e-mail.
-
-- **Papéis (RBAC):** `analyst` (leitura) e `admin` (cria/edita/ativa/desativa/exclui). O usuário seed é `admin`.
-- **Ciclo:** a regra nasce **inativa** → o analista a **testa contra uma análise existente** (simulação
-  read-only, não persiste score) → **ativa**. Cada mutação gera nova **versão**, exige **justificativa**
-  e grava **auditoria** (`rule.create|update|activate|deactivate|delete`) + histórico versionado.
-- **Aplicação:** regras ativas **aumentam** (não substituem) os analisadores. Cada disparo vira um
-  finding com `rule_id`+evidência; a contribuição total ao índice é **limitada a 40 pontos**. No
-  resultado, toda regra disparada mostra versão, evidência e link — nada altera o risco sem rastro.
-
-**DSL — campos permitidos:** `subject`, `from_addr`, `from_domain`, `reply_to`, `return_path`, `body`,
-`auth_results` (texto); `url_hosts`, `attachment_exts` (listas); `has_anchor_mismatch` (booleano).
-**Operadores:** `equals`, `not_equals`, `contains`, `not_contains`, `startswith`, `endswith`, `regex`,
-`in`, `is_true`, `is_false`. **Composição:** `{ "all": [...] }`, `{ "any": [...] }`, `{ "not": {...} }`.
-
-Exemplo:
-
-```json
-{ "all": [
-  { "field": "from_domain", "op": "endswith", "value": "paypa1.com" },
-  { "any": [
-    { "field": "subject", "op": "contains", "value": "urgente" },
-    { "field": "has_anchor_mismatch", "op": "is_true" }
-  ]}
-]}
-```
-
-## Privacidade e retenção
-
-- **Cifra em repouso:** o `raw_content` é cifrado (Fernet) antes de persistir.
-- **Redação de PII:** saídas narrativas (summary, evidência de regra) mascaram e-mails, CPF, CNPJ,
-  telefones (BR), cartões e credenciais/tokens. Os IOCs estruturados permanecem defanged e íntegros.
-- **Retenção/purga:** um comando remove análises além de `HOOKSHADE_RETENTION_DAYS` (padrão 90),
-  auditando cada remoção (`analysis.purge`):
+## Verificar
 
 ```bash
 cd backend
-.venv/Scripts/python -m app.tasks.purge              # usa HOOKSHADE_RETENTION_DAYS
-.venv/Scripts/python -m app.tasks.purge --days 30    # sobrescreve o prazo
+python -m pytest -q
+
+cd ../frontend
+npm ci
+npx tsc --noEmit
+npm run lint
+npm test
+npm run build
+
+cd ..
+docker compose up --build --wait --wait-timeout 240
+cd e2e
+npm ci
+npx playwright install --with-deps chromium
+npm test
+# CAPTURE_DOCS=true npm test  # atualiza docs/img com o ambiente em execução
 ```
 
-> **⚠️ A retenção só é garantia se o job estiver agendado.** Sem agendamento, o prazo de
-> `HOOKSHADE_RETENTION_DAYS` é uma promessa vazia — o comando existe, mas ninguém o executa.
+Verificados: **252 testes pytest, 18 testes Vitest/RTL/MSW e 1 fluxo Playwright**. Typecheck, lint e build de produção passaram. O Playwright local usou API/SQLite descartável; a execução via Compose/Postgres permanece pendente por restrição de acesso ao Docker engine. Saídas e detalhes: [docs/tasks/01-resultado.md](docs/tasks/01-resultado.md).
 
-**Agendamento por ambiente (escolha um):**
+O workflow `e2e.yml` executa Playwright contra Compose/Postgres e publica relatório e capturas. Os workflows usam permissões mínimas e actions fixadas por SHA, conferidas na API do GitHub ([registro](docs/tasks/01-actions-verificados.json)).
 
-- **Railway (deploy atual):** crie um **segundo serviço** a partir do mesmo repo/diretório
-  `backend`, com *Start Command* `python -m app.tasks.purge` e **Cron Schedule** `0 3 * * *`
-  (Settings → Cron Schedule; o serviço roda, sai e o Railway o reexecuta no horário).
-  Use as mesmas variáveis `HOOKSHADE_*` do serviço web (em especial `DATABASE_URL`).
-- **cron (Linux/macOS):** `0 3 * * * cd /caminho/backend && .venv/bin/python -m app.tasks.purge`
-- **Windows (Task Scheduler):** ação `python -m app.tasks.purge`, "iniciar em" = pasta `backend`.
+## Controles de segurança e testes
 
-A execução é **idempotente** (segunda rodada remove zero), audita cada remoção
-(`analysis.purge`) e loga JSON estruturado: `purge.completed` com o total removido, ou
-`purge.failed` com o **tipo** da exceção (nunca a mensagem — pode ecoar conteúdo de e-mail).
-Falha propaga com exit ≠ 0 para o agendador poder alertar. **Não** há scheduler embutido no
-app web — evita purga duplicada em múltiplos workers e purga dentro de request.
+| Controle | Código | Cobertura |
+|---|---|---|
+| Cookie HttpOnly, Secure, `__Host-`, expiração | `backend/app/cookies.py`, `config.py` | `test_cookie_session.py`, `test_cookie_config.py` |
+| CSRF assinado, inclusive login/demo | `backend/app/csrf.py`, `main.py` | `test_csrf.py`, `test_portfolio.py` |
+| bcrypt e segredos obrigatórios em produção | `backend/app/security.py`, `config.py` | `test_security.py`, `test_config_hardening.py` |
+| Bloqueio de conta e rate limit | `backend/app/routers/auth.py`, `ratelimit.py` | `test_login_lockout.py`, `test_rate_limit.py`, `test_portfolio.py` |
+| Revogação JWT por `token_version` | `security.py`, `deps.py`, routers `auth.py` e `users.py` | `test_portfolio.py`, `test_migrations.py`, E2E |
+| RBAC e isolamento de análises | `backend/app/deps.py`, routers | `test_rbac.py`, `test_analysis_ownership.py`, matriz demo em `test_portfolio.py` |
+| Cifra e redação de PII | `backend/app/crypto.py`, `redaction.py` | `test_privacy.py`, `test_redaction*.py`, `test_log_redaction.py` |
+| Regras declarativas e proteção contra ReDoS | `backend/app/rules/validation.py`, `engine.py` | `test_rules_validation.py`, `test_rules_engine.py` |
+| CSP com nonce, anti-frame e demais headers | `frontend/proxy.ts`, `next.config.ts`, `backend/app/security_headers.py` | `test_security_headers.py`, Playwright `portfolio.spec.ts` |
+| Estado demo, guardas e cold start | `frontend/components/AppShell.tsx`, `ApiWakeup.tsx` | `frontend/tests/portfolio.test.tsx` (Vitest/RTL/MSW) |
 
-## Backup e restore
+Nomes de testes sem diretório são relativos a `backend/tests/`.
 
-Runbook completo em **`docs/operations/backup-restore.md`** — scripts `scripts/db-backup.sh`
-(pg_dump, URL só por variável de ambiente) e `scripts/db-restore.sh` (alvo explícito via
-`RESTORE_DATABASE_URL` + validação automática de `alembic_version` e contagens). Dumps nunca
-são versionados. Periodicidade recomendada: dump diário, teste de restore mensal — restore
-já validado em Postgres temporário (ver registro no runbook).
+O demo compartilhado tem JWT e cookie com validade própria (`DEMO_SESSION_MINUTES`, padrão
+30 minutos). Seu logout só remove o cookie do navegador, sem incrementar `token_version`
+nem encerrar sessões de outros visitantes. A duração vale tanto para `/auth/demo` quanto
+para o login comum do papel demo. A regressão é coberta por `test_demo_sessions.py`.
+Analyst e admin mantêm a revogação por conta após logout, troca de senha e bloqueio.
 
-## Variáveis de ambiente (backend, prefixo `HOOKSHADE_`)
+## Operação e limites
 
-Em `HOOKSHADE_ENV=production`, a aplicação **recusa subir** (fail-closed) se os segredos
-estiverem fracos/default — ver "Deploy de portfólio".
+- Para contas comuns, logout, troca de senha, desativação e lockout revogam JWTs pela versão no banco, em todas as sessões da conta. Tokens anteriores à migração são rejeitados.
+- No demo, logout só limpa o cookie local: uma cópia do JWT permanece válida até expirar (padrão 30 minutos). Falhas de senha mantêm o lockout temporário, sem incrementar a versão demo. Ações administrativas e rotação de senha pelo seed ainda podem revogar sessões demo.
+- Compose habilita `HOOKSHADE_E2E_SEED_ENABLED=true` para criar o analyst fictício `e2e-analyst@example.com`, com senha pública `e2e-only-analyst-placeholder`, usado no teste E2E de revogação. A opção é desligada por padrão e ignorada em produção; nunca habilite essas credenciais em um serviço público.
+- Rate limit em memória, por processo; múltiplas instâncias exigem armazenamento compartilhado.
+- Purga de retenção existe (`python -m app.tasks.purge`), mas ainda precisa de agendamento.
+- Free tier pode dormir ou impor limites de disponibilidade. Não há monitoramento nem backup automático configurados.
+- Sem rotação versionada da chave Fernet nem resistência da auditoria a adulteração pelo operador do banco.
+- Este portfólio usa dados fictícios; não é um serviço multiusuário pronto para processar e-mails reais.
 
-| Variável | Padrão | Descrição |
-|----------|--------|-----------|
-| `HOOKSHADE_ENV` | `development` | `production` ativa o gate de segurança no startup |
-| `HOOKSHADE_SECRET_KEY` | (trocar!) | assina JWT; **obrigatória e ≥ 32 chars** em produção |
-| `HOOKSHADE_ENCRYPTION_KEY` | vazio | chave Fernet da cifra em repouso; **obrigatória e ≥ 32 chars** em produção (em dev, deriva do secret_key) |
-| `HOOKSHADE_SEED_EMAIL` / `HOOKSHADE_SEED_PASSWORD` | seed | admin inicial; **troque a senha** em produção |
-| `HOOKSHADE_CORS_ORIGINS` | `http://localhost:3000` | origens permitidas (CSV); **sem curinga** em produção |
-| `HOOKSHADE_DATABASE_URL` | `sqlite:///./hookshade.db` | **use Postgres** em produção |
-| `HOOKSHADE_RETENTION_DAYS` | `90` | prazo de retenção do `raw_content` antes da purga |
-| `HOOKSHADE_ACCESS_TOKEN_EXPIRE_MINUTES` | `30` | expiração do token de acesso |
-| `HOOKSHADE_LOGIN_MAX_ATTEMPTS` | `10` | falhas seguidas de login até lockout temporário da conta |
-| `HOOKSHADE_LOGIN_LOCKOUT_MINUTES` | `15` | duração do lockout da conta |
-| `HOOKSHADE_RATE_LIMIT_LOGIN_PER_MINUTE` | `10` | requisições de login por IP/minuto (janela deslizante) |
-| `HOOKSHADE_RATE_LIMIT_ANALYSES_PER_MINUTE` | `30` | criações de análise por IP/minuto |
-| `HOOKSHADE_COOKIE_SECURE` | `false` | cookie de sessão só sob HTTPS. **Obrigatório `true` em produção**; ativa o prefixo `__Host-` |
-| `HOOKSHADE_COOKIE_SAMESITE` | `lax` | `lax` ou `strict`. `none` é **recusado** em produção |
-
-O rate limiting é **em memória, por processo** — suficiente para a instância única atual;
-multi-instância exigirá backend compartilhado (Redis). Logs de requisição saem em **JSON
-estruturado** no stdout (request_id, método, rota, status, latência, user_id) e **nunca**
-contêm senha, token, `raw_content` ou e-mail; `/health` é liveness e `/ready` verifica o banco.
-
-Frontend: `BACKEND_INTERNAL_URL` (URL interna do backend, usada **só pelo servidor** do Next no
-proxy). Sem prefixo `NEXT_PUBLIC_` de propósito: assim ela nunca entra no bundle do navegador.
-Gere segredos com `python -c "import secrets; print(secrets.token_urlsafe(48))"`.
-
-## Deploy de portfólio
-
-> **Escopo:** isto é uma **peça de portfólio demonstrável**, não um SaaS multiusuário de
-> produção. Ver "Portfólio vs. produção real" e "Limitações conhecidas".
-
-1. **Segredos fortes:** setar `HOOKSHADE_ENV=production`, `HOOKSHADE_SECRET_KEY` e
-   `HOOKSHADE_ENCRYPTION_KEY` (≥ 32 chars, aleatórios), trocar `HOOKSHADE_SEED_PASSWORD`.
-   Se algum estiver fraco/default, o backend **não sobe** (proposital).
-2. **Backend:** host de contêiner/ASGI (Railway, Fly, Render…), `uvicorn app.main:app`.
-   Provisionar Postgres e apontar `HOOKSHADE_DATABASE_URL`. Segredos por variável de ambiente
-   (nunca commitar `.env`).
-3. **CORS restrito:** `HOOKSHADE_CORS_ORIGINS` só com o domínio do frontend.
-4. **Frontend:** Vercel (ou equivalente), `NEXT_PUBLIC_API_BASE` = URL pública do backend.
-5. **Logs sem dados sensíveis:** auditoria não grava `raw_content`; mantenha o princípio.
-
-## Portfólio vs. produção real
-
-| Já resolvido (portfólio) | Falta para produção multiusuário real |
-|--------------------------|----------------------------------------|
-| Segredos fortes obrigatórios (gate) | Migrações de schema (Alembic) |
-| CORS restrito | Rate limiting / proteção a brute-force |
-| Cifra em repouso + redação de PII | Tamper-evidence da auditoria (hash-chain/assinatura) |
-| RBAC (admin/analyst) | Refresh tokens / revogação de JWT |
-| Auditoria append-only | RBAC granular, monitoração |
-| Gestão de usuários por admin + backup/restore testado | MFA, refresh/revogação de sessão, SSO |
-
-## Testes e verificação
-
-```bash
-# backend
-backend/.venv/Scripts/python -m pytest
-# frontend
-cd frontend && npx tsc --noEmit && npm run build
-```
-
-## Smoke pós-deploy
-
-Após publicar, valide o ambiente ao vivo com `scripts/postdeploy-smoke.cjs` (Playwright).
-É parametrizado por variáveis de ambiente — **sem segredo no arquivo**, sem localhost fixo,
-sem pressupor usuário `viewer` (o seed de produção é admin). Cria uma análise de teste e uma
-regra que fica **inativa** (não polui o score); não apaga dados.
-
-```bash
-cd scripts
-npm install && npx playwright install chromium   # 1ª vez
-
-# bash/CI:
-HOOKSHADE_FRONTEND_URL="https://SEU-FRONT.vercel.app" \
-HOOKSHADE_API_URL="https://SEU-API.up.railway.app" \
-HOOKSHADE_ADMIN_EMAIL="seu-admin@exemplo.com" \
-HOOKSHADE_ADMIN_PASSWORD="sua-senha-forte" \
-node postdeploy-smoke.cjs
-```
-
-```powershell
-# PowerShell (Windows):
-$env:HOOKSHADE_FRONTEND_URL="https://SEU-FRONT.vercel.app"
-$env:HOOKSHADE_API_URL="https://SEU-API.up.railway.app"
-$env:HOOKSHADE_ADMIN_EMAIL="seu-admin@exemplo.com"
-$env:HOOKSHADE_ADMIN_PASSWORD="sua-senha-forte"
-node postdeploy-smoke.cjs
-```
-
-Valida: landing pública, `/preview/*` → 404, login admin, nova análise, histórico escopado,
-manchete "veredito + ação", criar/testar/ativar/desativar regra, e ausência de token/segredo/
-stacktrace na tela. Sai com código ≠ 0 se algum passo falhar (CI-friendly).
-`viewer` e acesso a análise alheia (IDOR) já são cobertos pela suíte de testes do backend.
-
-## Limitações conhecidas
-
-- **Sem revogação de sessão.** O logout apaga o cookie, mas um JWT copiado antes segue válido até
-  expirar. Refresh token, revogação global e MFA ainda não existem.
-- Redação de PII é heurística (regex, foco em formatos BR) — pode ter falsos negativos; é uma barreira
-  a mais, não a única (o `raw_content` segue cifrado e sob retenção).
-- Regex de regra tem limites anti-ReDoS (tamanho do padrão e do corpus), mas não sandbox de tempo.
-- Autenticação de e-mail é **lida do header** (carimbo do MTA receptor), não revalidada via DNS (P1-1).
-
-## Escopo defensivo (não recompetir / fases futuras)
-
-Somente uso defensivo e autorizado. **Fora de escopo:** detonação/resolução de URLs online,
-qualquer recurso ofensivo/evasivo. **Futuro (v1.1+):** revalidação DNS, quishing (QR), export MISP/TheHive,
-enriquecimento TI opt-in, IA narrativa com coleira anti-injeção, relatório PDF, dashboard, integrações SIEM.
-
-## Documentação
-
+[Deploy e habilitação do demo](docs/operations/deploy.md) · [Backup/restore](docs/operations/backup-restore.md) · [Rollback](docs/operations/rollback.md) · [CI/CD](docs/operations/ci-cd.md).

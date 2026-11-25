@@ -17,10 +17,11 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     password_hash: Mapped[str] = mapped_column(String(255))
     status: Mapped[str] = mapped_column(String(20), default="active")
-    role: Mapped[str] = mapped_column(String(20), default="analyst")  # analyst | admin
+    role: Mapped[str] = mapped_column(String(20), default="analyst")  # analyst | admin | viewer | demo
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     failed_login_attempts: Mapped[int] = mapped_column(Integer, default=0)
+    token_version: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     locked_until: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     last_failed_login_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 

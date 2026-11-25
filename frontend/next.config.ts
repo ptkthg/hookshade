@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 /* Headers estáticos (os que não mudam por requisição).
- * A CSP fica no middleware.ts, porque precisa de um nonce novo a cada resposta. */
+ * A CSP fica no proxy.ts, porque precisa de um nonce novo a cada resposta. */
 
 const isProd = process.env.NODE_ENV === "production";
 
@@ -21,6 +21,7 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  output: "standalone",
   poweredByHeader: false, // não anunciar "X-Powered-By: Next.js"
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];

@@ -84,6 +84,10 @@ export async function analyzeFile(file: File, context?: string): Promise<Analysi
 
 // ---- Usuário atual (para gating de RBAC na UI) ----
 export const getMe = () => req<CurrentUser>("/api/v1/auth/me");
+export const getAuthConfig = () => req<{ demo_enabled: boolean }>("/api/v1/auth/config");
+export const loginDemo = () => req<CurrentUser>("/api/v1/auth/demo", { method: "POST" });
+export const analyzeSample = (id: string) =>
+  req<AnalysisDetail>(`/api/v1/analyses/samples/${encodeURIComponent(id)}`, { method: "POST" });
 
 // ---- Motor de regras editável (P1-3) ----
 const jsonBody = (method: string, body: unknown): RequestInit => ({

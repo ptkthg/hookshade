@@ -37,7 +37,7 @@ function buildCsp(nonce: string): string {
 
     "img-src 'self' data:",
     "font-src 'self'",           // next/font self-hospeda as fontes; nenhum CDN
-    "connect-src 'self'",        // o proxy same-origin garante que só falamos conosco
+    "connect-src 'self' https://hookshade-api.onrender.com",
     "frame-ancestors 'none'",    // anti-clickjacking
     "object-src 'none'",         // sem plugins
     "base-uri 'self'",           // impede sequestro da URL base

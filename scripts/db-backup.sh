@@ -3,7 +3,7 @@
 #
 # Uso:
 #   HOOKSHADE_DATABASE_URL="postgres://..." ./db-backup.sh [dir-de-saida]
-#   (aceita também DATABASE_URL, o nome que o Railway injeta)
+#   (aceita também DATABASE_URL como alias; produção usa Postgres no Neon)
 #
 # Nunca passe a URL como argumento nem a grave em arquivo — só variável de
 # ambiente. O dump NÃO deve ser commitado (contém dados cifrados + usuários).

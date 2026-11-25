@@ -18,12 +18,12 @@ def _common() -> dict:
     }
 
 
-def set_session_cookie(response: Response, token: str) -> None:
+def set_session_cookie(response: Response, token: str, *, minutes: int | None = None) -> None:
     response.set_cookie(
         settings.session_cookie_name,
         token,
         httponly=True,  # o JS nunca lê a sessão: essa é a razão de existir da migração
-        max_age=settings.access_token_expire_minutes * 60,  # coerente com o exp do JWT
+        max_age=(settings.access_token_expire_minutes if minutes is None else minutes) * 60,
         **_common(),
     )
 

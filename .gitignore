@@ -24,6 +24,12 @@ out/
 dist/
 *.log
 npm-debug.log*
+.npm-cache/
+.pip-cache/
+playwright-report/
+test-results/
+*.tsbuildinfo
+.local-test/
 
 # OS / editor
 .DS_Store

@@ -64,3 +64,22 @@ def test_seed_user_works_on_migrated_db(migrated_engine):
         assert user.role == "admin"
     finally:
         db.close()
+
+
+def test_token_version_migrates_existing_user_and_downgrades(tmp_path):
+    from sqlalchemy import text
+    cfg = Config(str(BACKEND_DIR / "alembic.ini"))
+    cfg.set_main_option("script_location", str(BACKEND_DIR / "alembic"))
+    url = f"sqlite:///{tmp_path / 'existing.db'}"
+    cfg.set_main_option("sqlalchemy.url", url)
+    command.upgrade(cfg, "f08dcac4679c")
+    engine = create_engine(url)
+    with engine.begin() as db:
+        db.execute(text("INSERT INTO users (name,email,password_hash,status,role,created_at) "
+                        "VALUES ('Fictício','migration@example.com','test-only-hash-placeholder','active','analyst',CURRENT_TIMESTAMP)"))
+    command.upgrade(cfg, "head")
+    with engine.connect() as db:
+        assert db.execute(text("SELECT token_version FROM users")).scalar_one() == 0
+    command.downgrade(cfg, "f08dcac4679c")
+    assert "token_version" not in {c["name"] for c in inspect(engine).get_columns("users")}
+    engine.dispose()

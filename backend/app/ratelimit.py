@@ -53,6 +53,11 @@ def rate_limit_login(request: Request) -> None:
         raise _TOO_MANY
 
 
+def rate_limit_demo(request: Request) -> None:
+    if not limiter.allow(f"demo:{_client_ip(request)}", max_requests=3, window_seconds=60):
+        raise _TOO_MANY
+
+
 def rate_limit_analyses(request: Request) -> None:
     if not limiter.allow(f"analyses:{_client_ip(request)}",
                          max_requests=settings.rate_limit_analyses_per_minute,

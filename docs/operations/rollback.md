@@ -17,9 +17,11 @@
 2. Localize o último deploy verde (o anterior ao problema).
 3. **Rollback** (ou `Manual Deploy → Deploy a specific commit` e escolha o commit anterior).
 
-**Migration não precisa ser desfeita** — nenhuma fase até aqui altera schema. Se um dia
-alterar: reverter o código **não** reverte a migration. Aí o rollback exige `alembic
-downgrade`, e isso tem que estar planejado **antes** de subir a migration, nunca depois.
+**Reverter código não reverte o schema.** A spec 01 acrescenta `users.token_version`
+(migração `92cb401a0001`). A coluna pode permanecer num rollback do código. Se for
+necessário removê-la, pare a aplicação e execute `alembic downgrade f08dcac4679c`
+depois de validar um backup. Retornar à versão anterior também remove a revogação de JWT;
+rotacione o segredo de assinatura se precisar invalidar todas as sessões nesse cenário.
 
 **Se a migration falhou no deploy:** não há o que reverter. O start encadeia
 `alembic upgrade head && uvicorn` — se a migration falha, o processo **não sobe** e o deploy

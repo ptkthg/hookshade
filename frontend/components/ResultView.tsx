@@ -64,7 +64,7 @@ function VerdictHero({ a }: { a: AnalysisDetail }) {
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <h1 className="font-display text-sm" style={{ color: "var(--muted)" }}>Análise #{a.id}</h1>
+            <h1 className="font-display text-sm" style={{ color: "var(--muted)" }}>{a.source_type === "sample" ? "Amostra fictícia" : `Análise #${a.id}`}</h1>
             <SeverityBadge severity={a.severity} />
             <span
               className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full"

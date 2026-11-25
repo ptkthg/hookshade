@@ -1,0 +1,49 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-hookshade}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dev-only-postgres-placeholder}
+      POSTGRES_DB: ${POSTGRES_DB:-hookshade}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  api:
+    build: ./backend
+    env_file:
+      - path: .env.example
+      - path: .env
+        required: false
+    environment:
+      HOOKSHADE_DATABASE_URL: ${HOOKSHADE_DATABASE_URL:-postgresql://hookshade:dev-only-postgres-placeholder@postgres:5432/hookshade}
+      DEMO_ENABLED: ${DEMO_ENABLED:-true}
+      DEMO_PASSWORD: ${DEMO_PASSWORD:-dev-only-demo-placeholder}
+      HOOKSHADE_E2E_SEED_ENABLED: "true" # conta fictícia somente neste ambiente local/E2E
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/ready', timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+  web:
+    build: ./frontend
+    environment:
+      BACKEND_INTERNAL_URL: http://api:8000
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 10s
+      retries: 30
+volumes:
+  postgres-data:
