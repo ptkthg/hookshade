@@ -36,6 +36,10 @@ class Settings(BaseSettings):
     demo_enabled: bool = Field(False, validation_alias="DEMO_ENABLED")
     demo_password: str = Field("", validation_alias="DEMO_PASSWORD")
     demo_session_minutes: int = Field(30, gt=0, validation_alias="DEMO_SESSION_MINUTES")
+    preview_max_bytes: int = Field(65536, gt=0, validation_alias="PREVIEW_MAX_BYTES")
+    preview_rate_per_minute: int = Field(5, gt=0, validation_alias="PREVIEW_RATE_PER_MINUTE")
+    preview_rate_per_hour: int = Field(30, gt=0, validation_alias="PREVIEW_RATE_PER_HOUR")
+    preview_global_per_hour: int = Field(300, gt=0, validation_alias="PREVIEW_GLOBAL_PER_HOUR")
     e2e_seed_enabled: bool = False  # somente Compose/E2E; ignorado em produção
     cors_origins: str = "http://localhost:3000"
 

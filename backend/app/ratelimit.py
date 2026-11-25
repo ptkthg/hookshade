@@ -63,3 +63,14 @@ def rate_limit_analyses(request: Request) -> None:
                          max_requests=settings.rate_limit_analyses_per_minute,
                          window_seconds=60):
         raise _TOO_MANY
+
+
+def rate_limit_preview(request: Request) -> None:
+    ip = _client_ip(request)
+    for key, limit, window in (
+        (f"preview:min:{ip}", settings.preview_rate_per_minute, 60),
+        (f"preview:hour:{ip}", settings.preview_rate_per_hour, 3600),
+        ("preview:global", settings.preview_global_per_hour, 3600),
+    ):
+        if not limiter.allow(key, max_requests=limit, window_seconds=window):
+            raise _TOO_MANY

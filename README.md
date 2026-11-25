@@ -1,7 +1,7 @@
 ﻿# Hookshade
 
 Hookshade is a full-stack phishing triage portfolio built with FastAPI, Next.js and PostgreSQL.
-It explains risk through evidence and offers a read-only demo using fictional email samples.
+It explains risk through evidence and offers a demo with fictional samples and ephemeral email analysis.
 
 Plataforma defensiva para triagem de phishing em SOC: upload de `.eml` ou texto bruto → parser → IOCs → leitura de SPF/DKIM/DMARC dos headers → detecção de URLs mascaradas → índice de risco explicável, evidências e recomendações. Regras declarativas, histórico e auditoria completam o fluxo. O pipeline **não faz chamadas externas**, não abre URLs nem executa anexos.
 
@@ -13,8 +13,11 @@ A API pode levar cerca de um minuto para acordar no plano gratuito do Render. A 
 1. Na tela de login, selecione **Entrar como demo**, sem informar uma senha.
 2. Abra uma das quatro análises fictícias no histórico e confira score, evidências e IOCs defanged.
 3. Consulte as regras ou abra **Nova análise → Testar com amostra** para executar uma mensagem do projeto sem salvar dados.
+4. Em **Nova análise**, cole um e-mail ou selecione um `.eml`: o resultado efêmero aparece na própria página. O conteúdo é analisado em memória e descartado; nada é salvo no histórico ou na auditoria.
 
-O demo é somente leitura: upload, texto livre, exclusão, alterações de regras e administração são bloqueados no backend com `403`. A faixa no topo identifica os dados fictícios. Use exclusivamente mensagens fictícias neste portfólio. O índice é heurístico e depende da avaliação humana; SPF/DKIM/DMARC são lidos dos headers, sem revalidação DNS.
+O preview aceita até 64 KB em UTF-8, com 5 análises por minuto e 30 por hora por IP, além de um teto global de 300 por hora. Esses limites são configuráveis por `PREVIEW_MAX_BYTES`, `PREVIEW_RATE_PER_MINUTE`, `PREVIEW_RATE_PER_HOUR` e `PREVIEW_GLOBAL_PER_HOUR`. O estado do rate limit vive no processo, com uma instância/worker no Render; o teto global limita o abuso mesmo com `X-Forwarded-For` forjado. A interface informa os valores padrão.
+
+O demo continua sem permissão para salvar análises, excluir, alterar regras ou administrar usuários (`403` no backend). A faixa no topo identifica os dados fictícios do histórico. Use exclusivamente mensagens fictícias ou sem dados pessoais neste portfólio. O índice é heurístico e depende da avaliação humana; SPF/DKIM/DMARC são lidos dos headers, sem revalidação DNS.
 
 ## Telas
 
@@ -38,7 +41,7 @@ flowchart LR
 
 O navegador usa `/api/*`; `BACKEND_INTERNAL_URL` é server-side. O JWT fica em cookie `HttpOnly`, com CSRF assinado para métodos mutáveis. Em produção, o cookie usa `Secure`, `SameSite=Lax`, `Path=/`, sem `Domain` e prefixo `__Host-`.
 
-Papéis: `admin` gerencia usuários e regras; `analyst` trabalha com as próprias análises; `demo` consulta as próprias análises seed e testa amostras fechadas. O papel legado `viewer` continua suportado. Usuários e auditoria global são exclusivos do admin, tanto na interface quanto na API.
+Papéis: `admin` gerencia usuários e regras; `analyst` trabalha com as próprias análises; `demo` consulta as próprias análises seed, testa amostras e analisa mensagens de forma efêmera. O papel legado `viewer` continua suportado. Usuários e auditoria global são exclusivos do admin, tanto na interface quanto na API.
 
 ## Rodar localmente
 
@@ -113,6 +116,7 @@ O workflow `e2e.yml` executa Playwright contra Compose/Postgres e publica relat�
 | Regras declarativas e proteção contra ReDoS | `backend/app/rules/validation.py`, `engine.py` | `test_rules_validation.py`, `test_rules_engine.py` |
 | CSP com nonce, anti-frame e demais headers | `frontend/proxy.ts`, `next.config.ts`, `backend/app/security_headers.py` | `test_security_headers.py`, Playwright `portfolio.spec.ts` |
 | Estado demo, guardas e cold start | `frontend/components/AppShell.tsx`, `ApiWakeup.tsx` | `frontend/tests/portfolio.test.tsx` (Vitest/RTL/MSW) |
+| Preview efêmero, sem gravação, CSRF, limite UTF-8 e rate limit por IP/global | `backend/app/routers/analyses.py`, `ratelimit.py`, `frontend/app/nova-analise/page.tsx` | `backend/tests/test_preview.py`, `frontend/tests/portfolio.test.tsx`, `e2e/tests/portfolio.spec.ts` |
 
 Nomes de testes sem diretório são relativos a `backend/tests/`.
 

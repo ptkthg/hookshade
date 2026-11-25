@@ -70,15 +70,61 @@ describe("login", () => {
 });
 
 describe("análises", () => {
-  it("desabilita escrita demo e permite amostra sem navegar a um ID persistido", async () => {
+  it("habilita preview demo e permite amostra sem navegar a um ID persistido", async () => {
     server.use(http.post("*/api/v1/analyses/samples/phishing", () => HttpResponse.json({ ...result, id: 0, source_type: "sample" })));
     render(<NovaAnalisePage />);
     expect(await screen.findByText(/Demonstração · dados fictícios/)).toBeVisible();
-    expect(screen.getByLabelText("Conteúdo bruto do e-mail")).toBeDisabled();
-    expect(screen.getByLabelText("Arquivo .eml")).toBeDisabled();
+    expect(screen.getByLabelText("Conteúdo bruto do e-mail")).toBeEnabled();
+    expect(screen.getByLabelText("Arquivo .eml")).toBeEnabled();
+    expect(screen.queryByLabelText("Contexto (opcional)")).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Testar com amostra" }));
     expect(await screen.findByText("contoso[.]example")).toBeVisible();
     expect(router.push).not.toHaveBeenCalled();
+  });
+  it.each(["texto", "arquivo"])("demo envia %s para preview e mostra resultado efêmero", async (mode) => {
+    const content = "From: ficticio@example.com\n\nhttps://contoso.example";
+    let received: unknown;
+    server.use(http.post("*/api/v1/analyses/preview", async ({ request }) => {
+      received = await request.json();
+      return HttpResponse.json({ ...result, id: 0, source_type: "preview" });
+    }));
+    render(<NovaAnalisePage />);
+    await screen.findByRole("button", { name: "Testar com amostra" });
+    if (mode === "texto") fireEvent.change(screen.getByLabelText("Conteúdo bruto do e-mail"), { target: { value: content } });
+    else {
+      const file = new File([content], "ficticio.eml", { type: "message/rfc822" });
+      // jsdom não implementa Blob.text; o navegador lê o arquivo real no E2E.
+      Object.defineProperty(file, "text", { value: async () => content });
+      await userEvent.upload(screen.getByLabelText("Arquivo .eml"), file);
+    }
+    await userEvent.click(screen.getByRole("button", { name: "Analisar" }));
+    expect(await screen.findByText("Resultado efêmero · não foi salvo")).toBeVisible();
+    expect(received).toEqual({ content });
+    expect(router.push).not.toHaveBeenCalled();
+  });
+  it.each([
+    [413, "O e-mail passa de 64 KB."],
+    [429, "Limite de testes atingido. Tente de novo em alguns minutos."],
+  ])("traduz erro %s do preview", async (status, message) => {
+    server.use(http.post("*/api/v1/analyses/preview", () => HttpResponse.json({ detail: "Erro" }, { status: Number(status) })));
+    render(<NovaAnalisePage />);
+    await screen.findByRole("button", { name: "Testar com amostra" });
+    fireEvent.change(screen.getByLabelText("Conteúdo bruto do e-mail"), { target: { value: "Fictício" } });
+    await userEvent.click(screen.getByRole("button", { name: "Analisar" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(String(message));
+  });
+  it("conta bytes UTF-8 e impede texto e arquivo acima do limite", async () => {
+    render(<NovaAnalisePage />);
+    await screen.findByRole("button", { name: "Testar com amostra" });
+    const text = screen.getByLabelText("Conteúdo bruto do e-mail");
+    fireEvent.change(text, { target: { value: "á".repeat(32768) } });
+    expect(screen.getByText("65536 / 65536 bytes")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Analisar" })).toBeEnabled();
+    fireEvent.change(text, { target: { value: "á".repeat(32769) } });
+    expect(screen.getByRole("button", { name: "Analisar" })).toBeDisabled();
+    await userEvent.upload(screen.getByLabelText("Arquivo .eml"), new File(["a".repeat(65537)], "grande.eml"));
+    expect(screen.getByText("65537 / 65536 bytes")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Analisar" })).toBeDisabled();
   });
   it.each(["texto", "upload"])("envia %s como analista", async (mode) => {
     server.use(http.get("*/api/v1/auth/me", () => HttpResponse.json({ ...me, role: "analyst" })),

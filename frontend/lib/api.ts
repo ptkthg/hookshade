@@ -9,6 +9,13 @@ import type {
 
 const MUTATING = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
+export class ApiError extends Error {
+  constructor(message: string, public readonly status: number) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
 /** Busca o token CSRF (uma vez) e o guarda em memória. */
 async function ensureCsrf(): Promise<string> {
   const cached = getCsrfToken();
@@ -36,7 +43,7 @@ async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error(body.detail || res.statusText);
+    throw new ApiError(body.detail || res.statusText, res.status);
   }
   if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
@@ -73,6 +80,13 @@ export const analyzeText = (content: string, context?: string) =>
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ content, context }),
+  });
+
+export const analyzePreview = (content: string) =>
+  req<AnalysisDetail>("/api/v1/analyses/preview", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ content }),
   });
 
 export async function analyzeFile(file: File, context?: string): Promise<AnalysisDetail> {

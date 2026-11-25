@@ -1,20 +1,97 @@
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+import json
+import logging
+from collections.abc import AsyncIterator
+from dataclasses import asdict
+from datetime import datetime, timezone
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
+from pydantic import ValidationError
 from sqlalchemy.orm import Session
+from starlette.concurrency import run_in_threadpool
 
 from app.analysis.pipeline import run_analysis
 from app.audit import record_audit
 from app.crypto import encrypt
+from app.config import settings
 from app.deps import get_current_user, get_db, require_writer
 from app.models import IOC, Analysis, Finding, Recommendation, User
-from app.ratelimit import rate_limit_analyses
+from app.ratelimit import rate_limit_analyses, rate_limit_preview
 from app.rules.service import list_active_rule_dicts
 from app.schemas import (
-    AnalysisDetail, AnalysisSummary, AnalyzeTextRequest,
+    AnalysisDetail, AnalysisSummary, AnalyzeTextRequest, AnalyzePreviewRequest,
     FindingOut, IOCOut, RecommendationOut,
 )
 
 router = APIRouter(prefix="/api/v1/analyses", tags=["analyses"])
 _MAX_BYTES = 5 * 1024 * 1024
+logger = logging.getLogger("hookshade")
+
+
+def _ephemeral_detail(raw: str, db: Session, source_type: str) -> AnalysisDetail:
+    result, _sha = run_analysis(raw, rules=list_active_rule_dicts(db))
+    data = asdict(result)
+    for ioc in data["iocs"]:
+        ioc.pop("value")
+    return AnalysisDetail(id=0, source_type=source_type, created_at=datetime.now(timezone.utc), **data)
+
+
+async def _read_capped(stream: AsyncIterator[bytes], cap: int) -> bytes | None:
+    """Lê o corpo em streaming e para assim que passar de `cap` (devolve None).
+
+    Sem Content-Length (Transfer-Encoding: chunked), request.json() carregaria um corpo
+    de qualquer tamanho na memória antes de qualquer checagem.
+    """
+    received = bytearray()
+    async for chunk in stream:
+        received += chunk
+        if len(received) > cap:
+            return None
+    return bytes(received)
+
+
+@router.post("/preview", response_model=AnalysisDetail)
+async def preview_analysis(
+    request: Request,
+    user: User = Depends(get_current_user),
+    _: None = Depends(rate_limit_preview),
+    db: Session = Depends(get_db),
+):
+    # Sem parâmetro Body: FastAPI o leria antes de executar as dependências.
+    too_large = HTTPException(413, f"Conteúdo acima de {settings.preview_max_bytes / 1024:g} KB")
+    # Teto do corpo JSON: o escape do JSON pode dobrar o conteúdo (cada quebra de linha vira "\n"),
+    # então a folga é 2x o limite + 1 KB. O limite exato vale para o conteúdo, conferido depois.
+    body_cap = 2 * settings.preview_max_bytes + 1024
+    declared = request.headers.get("content-length")
+    if declared is not None:
+        try:
+            length = int(declared)
+        except ValueError:
+            raise HTTPException(422, "Content-Length inválido") from None
+        if length > body_cap:
+            raise too_large
+    received = await _read_capped(request.stream(), body_cap)
+    if received is None:
+        raise too_large
+    try:
+        body = AnalyzePreviewRequest.model_validate(json.loads(received))
+        size = len(body.content.encode("utf-8"))
+    except (ValidationError, ValueError, UnicodeError):
+        # Não devolve o input incluído nos erros de validação do Pydantic/JSON.
+        raise HTTPException(422, "Conteúdo inválido") from None
+    if size > settings.preview_max_bytes:
+        raise too_large
+    if not body.content.strip():
+        raise HTTPException(422, "Conteúdo vazio")
+    try:
+        detail = await run_in_threadpool(_ephemeral_detail, body.content, db, "preview")
+    except Exception:
+        # Uma falha no parser/regra também não pode ecoar a mensagem recebida.
+        raise HTTPException(500, "Falha na análise") from None
+    logger.info("analysis.preview", extra={"ctx": {
+        "user_id": user.id, "role": user.role, "bytes": size,
+        "severity": detail.severity, "risk_score": detail.risk_score,
+    }})
+    return detail
 
 
 def _get_owned_or_404(db: Session, analysis_id: int, user: User) -> Analysis:
@@ -134,15 +211,9 @@ def delete_analysis(analysis_id: int, user: User = Depends(require_writer), db: 
 @router.post("/samples/{sample_id}", response_model=AnalysisDetail,
              dependencies=[Depends(rate_limit_analyses)])
 def test_sample(sample_id: str, _: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    from dataclasses import asdict
-    from datetime import datetime, timezone
     from app.samples import SAMPLES
 
     raw = SAMPLES.get(sample_id)
     if raw is None:
         raise HTTPException(404, "Sample not found")
-    result, _sha = run_analysis(raw, rules=list_active_rule_dicts(db))
-    data = asdict(result)
-    for ioc in data["iocs"]:
-        ioc.pop("value")
-    return AnalysisDetail(id=0, source_type="sample", created_at=datetime.now(timezone.utc), **data)
+    return _ephemeral_detail(raw, db, "sample")

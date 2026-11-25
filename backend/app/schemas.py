@@ -63,6 +63,11 @@ class AnalyzeTextRequest(BaseModel):
     context: str | None = None
 
 
+class AnalyzePreviewRequest(BaseModel):
+    model_config = {"extra": "forbid"}
+    content: str
+
+
 class IOCOut(BaseModel):
     type: str
     value_defanged: str

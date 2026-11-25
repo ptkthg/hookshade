@@ -38,10 +38,25 @@ test("demo: seed, resultado, amostra, escrita negada e limpeza de sessão", asyn
   await expect(page.getByRole("link", { name: "Nova regra" })).toHaveCount(0);
   await capture("regras");
   await page.goto("/nova-analise");
-  await expect(page.getByLabel("Conteúdo bruto do e-mail")).toBeDisabled();
+  await expect(page.getByLabel("Conteúdo bruto do e-mail")).toBeEnabled();
   await capture("nova-analise");
   await page.getByRole("button", { name: "Testar com amostra" }).click();
   await expect(page.getByText("Resultado da amostra · não persistido")).toBeVisible();
+  await page.getByLabel("Conteúdo bruto do e-mail").fill("From: ficticio@example.com\nSubject: Treinamento fictício\n\nhttps://contoso.example/login");
+  await page.getByRole("button", { name: "Analisar", exact: true }).click();
+  await expect(page.getByText("Resultado efêmero · não foi salvo")).toBeVisible();
+  await expect(page).toHaveURL(/nova-analise/);
+  // Exercita também File.text() no navegador real.
+  await page.getByLabel("Arquivo .eml").setInputFiles({
+    name: "ficticio.eml", mimeType: "message/rfc822",
+    buffer: Buffer.from("From: ficticio@example.com\nSubject: Arquivo fictício\n\nhttps://contoso.example/login"),
+  });
+  const uploadPreview = page.waitForResponse((r) => r.url().endsWith("/analyses/preview") && r.request().method() === "POST");
+  await page.getByRole("button", { name: "Analisar", exact: true }).click();
+  expect((await uploadPreview).status()).toBe(200);
+  await expect(page.getByText("Resultado efêmero · não foi salvo")).toBeVisible();
+  await page.goto("/historico");
+  await expect(page.locator('a[href^="/resultado/"]')).toHaveCount(4);
   // Reutiliza o par CSRF do navegador; reemitir pela API desalinhará o token em memória da UI.
   const csrf = (await context.cookies()).find((c) => c.name.includes("csrf"))!.value;
   const before = await (await context.request.get("/api/v1/analyses")).json();

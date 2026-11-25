@@ -75,3 +75,11 @@ services:
         sync: false
       - key: DEMO_ENABLED
         value: "true"
+      - key: PREVIEW_MAX_BYTES
+        value: "65536"
+      - key: PREVIEW_RATE_PER_MINUTE
+        value: "5"
+      - key: PREVIEW_RATE_PER_HOUR
+        value: "30"
+      - key: PREVIEW_GLOBAL_PER_HOUR
+        value: "300"
