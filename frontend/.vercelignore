@@ -1,0 +1,8 @@
+# Deploy pela CLI a partir de frontend/: não enviar segredos, caches nem builds locais.
+.env*
+!.env.local.example
+node_modules
+.next
+.npm-cache
+coverage
+*.tsbuildinfo

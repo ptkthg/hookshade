@@ -1,0 +1,18 @@
+# Não enviar configuração local, segredos nem partes alheias ao front.
+.env
+.env.local
+.env.*.local
+backend
+e2e
+docs
+scripts
+.github
+**/node_modules
+**/.next
+# Caches e navegadores de teste locais (centenas de MB)
+.local-test
+**/.npm-cache
+**/.pip-cache
+**/playwright-report
+**/test-results
+**/*.tsbuildinfo
