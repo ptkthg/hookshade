@@ -53,7 +53,7 @@ def csrf(response: Response):
 @router.post("/login", response_model=UserOut, dependencies=[Depends(rate_limit_login)])
 def login(body: LoginRequest, response: Response, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == body.email).first()
-    if not user or user.status != "active" or (user.role == "demo" and not (settings.demo_enabled and settings.demo_password)):
+    if not user or user.status != "active" or (user.role == "demo" and not settings.demo_enabled):
         raise _GENERIC_401
     if user.locked_until is not None and user.locked_until > _utcnow_naive():
         raise _GENERIC_401
@@ -95,12 +95,12 @@ def logout(response: Response, request: Request, db: Session = Depends(get_db)):
 
 @router.get("/config")
 def auth_config():
-    return {"demo_enabled": bool(settings.demo_enabled and settings.demo_password)}
+    return {"demo_enabled": bool(settings.demo_enabled)}
 
 
 @router.post("/demo", response_model=UserOut, dependencies=[Depends(rate_limit_demo)])
 def demo_login(response: Response, db: Session = Depends(get_db)):
-    if not (settings.demo_enabled and settings.demo_password):
+    if not settings.demo_enabled:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Demo disabled")
     user = db.query(User).filter(User.email == "demo@hookshade.example", User.role == "demo").first()
     if not user or user.status != "active" or (user.locked_until and user.locked_until > _utcnow_naive()):

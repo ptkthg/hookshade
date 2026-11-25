@@ -49,9 +49,14 @@ def ensure_e2e_user(db) -> None:
 
 
 def ensure_demo(db) -> None:
-    """Opt-in por segredo de ambiente; idempotente, sem sobrescrever regras editadas."""
-    if not settings.demo_password:
+    """Opt-in por DEMO_ENABLED; idempotente, sem sobrescrever regras editadas.
+
+    O visitante entra pelo botão, sem senha. Sem DEMO_PASSWORD, a conta recebe uma senha
+    aleatória descartada na hora (ninguém a conhece; o login por senha fica inutilizável).
+    """
+    if not settings.demo_enabled:
         return
+    import secrets
     from app.routers.analyses import _persist
     from app.samples import SAMPLES
     from app.rules import service
@@ -59,12 +64,12 @@ def ensure_demo(db) -> None:
     user = db.query(User).filter(User.email == "demo@hookshade.example").first()
     if user is None:
         user = User(name="Demonstração fictícia", email="demo@hookshade.example", role="demo",
-                    password_hash=hash_password(settings.demo_password))
+                    password_hash=hash_password(settings.demo_password or secrets.token_urlsafe(32)))
         db.add(user)
         db.commit()
     elif user.role != "demo":
         raise ValueError("Demo email already assigned to another role")
-    elif not verify_password(settings.demo_password, user.password_hash):
+    elif settings.demo_password and not verify_password(settings.demo_password, user.password_hash):
         user.password_hash = hash_password(settings.demo_password)
         user.token_version += 1
         db.commit()

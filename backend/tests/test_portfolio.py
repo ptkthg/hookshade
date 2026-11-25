@@ -37,11 +37,17 @@ def test_demo_disabled(client, monkeypatch):
     assert client.post("/api/v1/auth/demo").status_code == 403
 
 
-def test_demo_requires_password_even_when_enabled(client, monkeypatch):
+def test_demo_works_without_password_and_password_login_is_unusable(client, db_session, monkeypatch):
+    """Sem DEMO_PASSWORD, o seed usa uma senha aleatória descartada: o botão funciona, a senha não."""
     monkeypatch.setattr(settings, "demo_enabled", True)
     monkeypatch.setattr(settings, "demo_password", "")
-    assert client.get("/api/v1/auth/config").json() == {"demo_enabled": False}
-    assert client.post("/api/v1/auth/demo").status_code == 403
+    from app.seed import ensure_demo
+    ensure_demo(db_session)
+    assert client.get("/api/v1/auth/config").json() == {"demo_enabled": True}
+    assert client.post("/api/v1/auth/demo").status_code == 200
+    for tentativa in ("", "demo", "test-only-demo-password"):
+        r = client.post("/api/v1/auth/login", json={"email": "demo@hookshade.example", "password": tentativa})
+        assert r.status_code != 200
 
 
 def test_switching_demo_off_revokes_access(demo, monkeypatch):

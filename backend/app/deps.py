@@ -32,7 +32,7 @@ def get_current_user(
     # inactive não autentica: token emitido antes da desativação deixa de valer
     if not user or user.status != "active" or user.token_version != payload["ver"]:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "User not found")
-    if user.role == "demo" and not (settings.demo_enabled and settings.demo_password):
+    if user.role == "demo" and not settings.demo_enabled:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Demo disabled")
     request.state.user_id = user.id  # correlação no log de request (id, nunca e-mail)
     return user
